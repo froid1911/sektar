@@ -74,6 +74,9 @@ importers:
       '@powerhousedao/workflow':
         specifier: 6.2.3-dev.86
         version: 6.2.3-dev.86(d1b6c598d4648dca05bcdcba0f7f2fcb)
+      '@renown/sdk':
+        specifier: 6.2.3-dev.86
+        version: 6.2.3-dev.86(26da473c7809d740d62a8afa0409bfd5)
       '@tailwindcss/cli':
         specifier: ^4.1.18
         version: 4.3.3

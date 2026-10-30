@@ -64,4 +64,17 @@ export const integrationSetupOperations: IntegrationSetupOperations = {
     state.intent.connectionId = action.input.connectionId ?? null;
     state.intent.generation += 1;
   },
+  setGrantOperation(state, action) {
+    if (!state.kind)
+      throw new NotInitializedError("Set up the integration first");
+    state.grant = {
+      statement: action.input.statement,
+      person: action.input.person,
+      grantedAt: action.input.grantedAt,
+      expiresAt: action.input.expiresAt,
+    };
+  },
+  clearGrantOperation(state, action) {
+    state.grant = null;
+  },
 };
