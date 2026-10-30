@@ -59,6 +59,7 @@ import {
 } from "../../sektar/kit/workflow-runtime.js";
 import { AccountLabel, setSwitch } from "./CardRows.js";
 import { RemoveDialog } from "./IntegrationCard.js";
+import { Grant } from "./Grant.js";
 import { SignIn } from "./SignIn.js";
 import { TryAgain } from "./TryAgain.js";
 import { useRuns } from "./use-runs.js";
@@ -210,6 +211,9 @@ export function IntegrationDetail({
           <SignIn integration={integration} />
         </div>
       )}
+      {integration.state.check?.issues.some(
+        (i) => i.code === "NEEDS_GRANT",
+      ) && <Grant integration={integration} />}
       <div className="sk-grid sk-grid--2 sk-intg-detail__grid">
         <LiveCard
           integration={integration}
