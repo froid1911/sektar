@@ -540,7 +540,10 @@ export function CreateFlow({
         back={() => go("add/how-much")}
       >
         <div className="sk-intg-access">
-          <div className="sk-intg-access__option is-selected">
+          <div
+            className="sk-intg-access__option is-selected"
+            style={{ cursor: "default" }}
+          >
             <ul className="sk-intg-access__list">
               <li>
                 <Icon name="check" size={16} mono className="sk-intg-yes" />

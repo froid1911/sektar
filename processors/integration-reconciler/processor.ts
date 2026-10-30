@@ -76,18 +76,18 @@ async function latestPublisher(
     { scopes: ["global"] },
     { actionTypes: [PUBLISH_WORKFLOW] },
   );
-  let latest: { index: number; signer?: Action["context"] } | undefined;
+  let latest: { index: number; context: Action["context"] } | undefined;
   for (;;) {
     for (const { action, error, index } of page.results) {
       if (action.type !== PUBLISH_WORKFLOW || error !== undefined) continue;
       if (!latest || index > latest.index) {
-        latest = { index, signer: action.context };
+        latest = { index, context: action.context };
       }
     }
     if (!page.next || page.results.length === 0) break;
     page = await page.next();
   }
-  const signer = latest?.signer?.signer;
+  const signer = latest?.context?.signer;
   if (!signer?.signatures.length || signer.app.key === hostKey) return null;
   return signer.user.address || null;
 }
