@@ -81,6 +81,24 @@ export default {
       host: "switchboard",
       // (runner key-merges over the switchboard host's own: its plugins
       // are inherited.)
+      //
+      // Sign-in is enforced as on the cloud host, which sets the same through
+      // env (hosts/cli/cli.env.example). A person's own computer has nobody to
+      // write ADMINS, so the first person to sign in becomes the owner, which
+      // is safe only because this host answers on loopback alone. Credentials
+      // are kept, so once signed in it works with no network (ADR 0008 §11).
+      config: {
+        switchboard: {
+          server: { host: "127.0.0.1" },
+          auth: {
+            enabled: true,
+            requireAuthenticatedCaller: true,
+            resolveIdentity: true,
+            ownerClaim: true,
+            offlineCredentials: true,
+          },
+        },
+      },
       reactor: {
         protocol: switchboard.reactor.protocol,
         backends: {
