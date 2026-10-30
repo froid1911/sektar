@@ -117,7 +117,35 @@ export type WorkflowFacts = {
   managedBy?: string | null;
   /** The published policy's retry for a failed step; absent: not read */
   defaultRetry?: StepRetry | null;
+  /** Who signed the latest publish as a person; null: the host or nobody. Absent: not read */
+  publisher?: string | null;
 };
+
+/** Switches a workflow off, leaving who published it as it is. */
+export function disableAction() {
+  return wf.setWorkflowStatus({ status: "DISABLED" });
+}
+
+/**
+ * `actions` with a publish in it: what makes the person granting an integration
+ * the run user of a workflow someone else published. The same policy goes in
+ * first, because it raises the version and a park only gives way to a newer
+ * version: a workflow parked for want of a person starts again by itself. The
+ * status stays last.
+ */
+export function withPublish(
+  actions: WorkflowAction[],
+  now: string,
+): WorkflowAction[] {
+  if (actions.some((a) => a.type === "PUBLISH_WORKFLOW")) return actions;
+  const publish = [
+    wf.setPolicy({ defaultRetry: STEP_RETRY }),
+    wf.publishWorkflow({ publishedAt: now }),
+  ];
+  const status = actions.findIndex((a) => a.type === "SET_WORKFLOW_STATUS");
+  if (status < 0) return [...actions, ...publish];
+  return [...actions.slice(0, status), ...publish, ...actions.slice(status)];
+}
 
 /** Marks a workflow as kept by an integration (Studio shows it read-only). */
 export function managedByAction(integration: { id: string; name: string }) {

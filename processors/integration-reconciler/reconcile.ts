@@ -26,11 +26,15 @@ import {
   type ProviderAdapter,
   type ProviderContext,
 } from "./providers/index.js";
+import type { ReconcileGrant } from "./grant.js";
 import {
   buildWorkflow,
+  disableAction,
   managedByAction,
   runtimeIssue,
+  withPublish,
   workflowDrift,
+  type Drift,
   type RuntimeHealth,
   type WorkflowAction,
   type WorkflowFacts,
@@ -82,6 +86,8 @@ export interface ReconcileIO {
    * finishes with the card's button wherever the person is.
    */
   environment?: boolean;
+  /** Who publishes for this integration on this pass (grant.ts) */
+  grant: ReconcileGrant;
   now(): string;
   /** Null when the document is gone */
   readConnection(id: string): Promise<ConnectionFacts | null>;
@@ -193,8 +199,9 @@ export async function reconcileIntegration(
     });
   } else {
     const connection = await readyConnection(doc, provider, io, issues, since);
-    if (connection) {
-      const { connectionId } = connection;
+    if (connection && io.grant.kind === "needed") {
+      await stopForGrant(doc, io.grant, io, issues, since);
+    } else if (connection) {
       built = await reconcileLiveWorkflow(
         doc,
         provider,
@@ -261,14 +268,7 @@ async function reconcileLiveWorkflow(
   const s = doc.state;
   const reactorConnectionId = await io.findReactorConnection();
   if (!reactorConnectionId) {
-    issues.push({
-      code: "NO_REACTOR_CONNECTION",
-      severity: "BLOCKING",
-      subject: null,
-      message: `${io.environment ? "This environment" : "This computer"} has no connection for workflows to write documents with`,
-      fixable: false,
-      since: since("NO_REACTOR_CONNECTION"),
-    });
+    issues.push(grantIssue("missing", io, since));
     return false;
   }
   const driveId = provider.drive ? await io.drive(provider.drive) : "";
@@ -309,7 +309,11 @@ async function reconcileLiveWorkflow(
     return true;
   }
   await markManaged(io, id, facts, doc);
-  const drift = workflowDrift(spec, facts, io.now(), () => io.newId());
+  const drift = forThePerson(
+    workflowDrift(spec, facts, io.now(), () => io.newId()),
+    facts,
+    io,
+  );
   if (drift.actions.length === 0) {
     // The workflow is what the integration asks for: is it running?
     const problem = runtimeIssue(await io.workflowHealth(id));
@@ -489,7 +493,11 @@ async function reconcileBackfill(
     s.intent.backfill.enabled && plugged !== null,
     range,
   );
-  const drift = workflowDrift(spec, facts, io.now(), () => io.newId());
+  const drift = forThePerson(
+    workflowDrift(spec, facts, io.now(), () => io.newId()),
+    facts,
+    io,
+  );
   if (drift.actions.length === 0) {
     if (spec.enabled) {
       const problem = runtimeIssue(
@@ -522,6 +530,69 @@ async function reconcileBackfill(
     }
   }
   return true;
+}
+
+/** What the card says for a gap in the grant. Its button fixes every one. */
+function grantIssue(
+  gap: Extract<ReconcileGrant, { kind: "needed" }>["gap"],
+  io: ReconcileIO,
+  since: (code: string) => string,
+  endedAt?: string,
+): IntegrationIssue {
+  const where = io.environment ? "in this environment" : "on this computer";
+  const message = {
+    missing: `Sektar needs your approval to write documents ${where}`,
+    ended: `Your approval ended${endedAt ? ` on ${endedAt.slice(0, 10)}` : ""}. Approve again to carry on`,
+    revoked: "Your sign-in was withdrawn. Approve again to carry on",
+    invalid: `Your approval does not fit ${io.environment ? "this environment" : "this computer"} any more. Approve again to carry on`,
+  }[gap];
+  return {
+    code: "NEEDS_GRANT",
+    severity: "BLOCKING",
+    subject: null,
+    message,
+    fixable: true,
+    since: since("NEEDS_GRANT"),
+  };
+}
+
+/**
+ * Nobody stands behind this integration: nothing is published, and what a
+ * person's approval kept running stops. Workflows that never had one are left
+ * as they are, and the next grant republishes them.
+ */
+async function stopForGrant(
+  doc: { state: IntegrationState },
+  grant: Extract<ReconcileGrant, { kind: "needed" }>,
+  io: ReconcileIO,
+  issues: IntegrationIssue[],
+  since: (code: string) => string,
+): Promise<void> {
+  if (grant.gap !== "missing") {
+    const { liveWorkflowId, backfillWorkflowId } = doc.state.resources;
+    for (const id of [liveWorkflowId, backfillWorkflowId]) {
+      const facts = id ? await io.readWorkflow(id) : null;
+      if (id && facts?.status === "ENABLED") {
+        await io.updateWorkflow(id, [disableAction()]);
+      }
+    }
+  }
+  issues.push(grantIssue(grant.gap, io, since, grant.endedAt));
+}
+
+/**
+ * A drift, with a publish added when someone other than the person who granted
+ * this integration published last, so the person becomes the run user.
+ */
+function forThePerson(
+  drift: Drift,
+  facts: WorkflowFacts,
+  io: ReconcileIO,
+): Drift {
+  if (io.grant.kind !== "delegated") return drift;
+  const person = io.grant.person.address.toLowerCase();
+  if (facts.publisher?.toLowerCase() === person) return drift;
+  return { ...drift, actions: withPublish(drift.actions, io.now()) };
 }
 
 /**
