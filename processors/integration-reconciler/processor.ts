@@ -33,6 +33,11 @@ import {
   type ReconcileIO,
 } from "./reconcile.js";
 import { resolveDriveId } from "processors/drive-ids";
+import {
+  noteRecorded,
+  withRecorded,
+  type RecordedResources,
+} from "./recorded-resources.js";
 import { runnerIdentity } from "./runner.js";
 
 export const INTEGRATION_TYPE = "sektar/integration";
@@ -54,6 +59,8 @@ type WorkflowHealthReader = {
 export class IntegrationReconciler implements IProcessor {
   private queue: Promise<void> = Promise.resolve();
   private readonly waiting = new Set<string>();
+  /** Per integration, what this runner recorded and has not read back (recorded-resources.ts) */
+  private readonly recorded = new Map<string, RecordedResources>();
   private timers: ReturnType<typeof setTimeout>[] = [];
   private stopped = false;
   // The machine locally; the PUBLIC_URL host in an environment (runner.ts)
@@ -123,11 +130,23 @@ export class IntegrationReconciler implements IProcessor {
     } catch {
       return; // deleted
     }
+    const read = (doc.state as unknown as { global: IntegrationState }).global;
+    // What the last pass recorded may not be readable yet: never make it twice
+    const overlay = withRecorded(
+      read.resources,
+      this.recorded.get(id) ?? {},
+      Date.now(),
+    );
+    if (Object.keys(overlay.recorded).length > 0) {
+      this.recorded.set(id, overlay.recorded);
+    } else {
+      this.recorded.delete(id);
+    }
     await reconcileIntegration(
       {
         id,
         name: doc.header.name,
-        state: (doc.state as unknown as { global: IntegrationState }).global,
+        state: { ...read, resources: overlay.resources },
       },
       this.io(id),
     );
@@ -200,6 +219,10 @@ export class IntegrationReconciler implements IProcessor {
       },
       dispatch: async (list) => {
         await dispatch.execute(integrationId, "main", list);
+        this.recorded.set(
+          integrationId,
+          noteRecorded(this.recorded.get(integrationId) ?? {}, list, Date.now()),
+        );
       },
       deleteDocument: async (id) => {
         try {

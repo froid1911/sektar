@@ -6,10 +6,8 @@ and the customers and suppliers behind them. Every record is a document on the
 Sektar drive; the app is a custom Connect shell styled with the Sektar design
 system.
 
-Demo company: **Juniper Studio**, a nine-person design studio in Amsterdam. The
-first run offers "Set up Juniper Studio", which writes three months of bank and
-card activity, invoices in both directions, expense claims in every state and
-eleven contacts — all through the document models' operations.
+A new environment starts empty: each page shows its own actions and what to do
+next, and the books fill as you add records or connect an integration.
 
 ## Layout
 
@@ -19,7 +17,7 @@ eleven contacts — all through the document models' operations.
 | `document-models/{bank-account,invoice,expense-report,contact}` | Generated models; hand-written reducers come from the specs; `v1/tests/scenario.test.ts` per model |
 | `editors/sektar/design/` | The Sektar design system, vendored unmodified by `scripts/sync-design-system.mjs` (tokens, base for reference, components, utilities, the icon and brand-mark sprites, logos, shapes; `SNAPSHOT.md` records the source files) plus `app.css`, the app layer |
 | `scripts/` | `sync-design-system.mjs` (re-vendor the design system), `build-icons.mjs` (app icons, splash, background and explorer icons from the design-system SVGs, via the monorepo's sharp) |
-| `editors/sektar/kit/` | `ui.tsx` React wrappers over the `sk-*` classes (lockup, page header, detail header, meta strip, pills, responsive selector, rich list rows, feed, stepper, chips, charts…), `theme.ts` the Connect→design-system theme bridge, `format.ts` labels/money/dates, `data.ts` reactor hooks and writers, `seed.ts` the demo company |
+| `editors/sektar/kit/` | `ui.tsx` React wrappers over the `sk-*` classes (lockup, page header, detail header, meta strip, pills, responsive selector, rich list rows, feed, stepper, chips, charts…), `theme.ts` the Connect→design-system theme bridge, `format.ts` labels/money/dates, `data.ts` reactor hooks and writers |
 | `editors/sektar/components/` | `InvoiceDetail`, `ExpenseDetail`, `ContactDetail`, `TransactionDetail` — shared by the boards (side panels) and the document editors |
 | `editors/*-editor/` | One document editor per model, under Connect's `DocumentToolbar` |
 | `processors/search-index/` | Relational processor: one `search_entries` row per document and per bank transaction, rebuilt from each operation's resulting state (or patched from the action input). Runs in the tab's in-process reactor and on the switchboard |

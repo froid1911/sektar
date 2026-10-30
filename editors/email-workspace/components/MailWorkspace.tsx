@@ -39,6 +39,7 @@ import {
   PersonPreview,
   personName,
 } from "../../sektar/components/EmailDetail.js";
+import { useOpenIntegrations } from "../../sektar/kit/data.js";
 import {
   traceChange,
   traceRender,
@@ -56,7 +57,6 @@ import {
   mail,
   mailboxLabel,
   messagePeople,
-  seedSampleMail,
   uniqueAttachments,
 } from "../../sektar/kit/mail.js";
 import { Menu } from "../../sektar/kit/menu.js";
@@ -86,7 +86,6 @@ import {
   EmptyState,
   Icon,
   ListItem,
-  Progress,
   Selector,
   Skeleton,
 } from "../../sektar/kit/ui.js";
@@ -340,8 +339,6 @@ export function MailWorkspace() {
       >
         {list.loaded && unfiltered && accounts.length === 0 ? (
           <MailEmpty
-            drive={drive}
-            hasStore={Boolean(client)}
             error={list.error}
             indexed={list.mode !== "unknown"}
           />
@@ -701,22 +698,15 @@ function MessageRowImpl({
   );
 }
 
-function MailEmpty({
-  drive,
-  hasStore,
+export function MailEmpty({
   error,
   indexed,
 }: {
-  drive: ReturnType<typeof useSelectedDrive>[0];
-  hasStore: boolean;
   error: string | null;
   /** Whether a mailbox index could be reached at all. */
   indexed: boolean;
 }) {
-  const client = useAttachments();
-  const [step, setStep] = useState<string | null>(null);
-  const [seedError, setSeedError] = useState<string | null>(null);
-  const busy = step !== null && step !== "Done";
+  const openIntegrations = useOpenIntegrations();
   return (
     <div
       className="sk-stack sk-stack--6"
@@ -726,47 +716,26 @@ function MailEmpty({
         icon="mail"
         title="No mail yet"
         action={
-          !busy && (
-            <Button
-              variant="primary"
-              icon="leaf"
-              onClick={() => {
-                setSeedError(null);
-                setStep("Starting");
-                seedSampleMail(drive, client, setStep).catch((e: unknown) => {
-                  setSeedError(e instanceof Error ? e.message : String(e));
-                  setStep(null);
-                });
-              }}
-            >
-              Add sample mail
-            </Button>
-          )
+          <Button
+            variant="primary"
+            size="sm"
+            icon="sync"
+            onClick={openIntegrations}
+          >
+            Open Integrations
+          </Button>
         }
       >
-        A workflow files mail here as it arrives: one document per message, its
-        attachments stored beside it. Until one runs, try it with a morning's
-        worth of mail for Juniper Studio
-        {hasStore ? "." : " (files need a switchboard behind the drive)."}
+        Connect an email account and your mail is filed here as it arrives,
+        with its attachments.
       </EmptyState>
-      {busy && (
-        <div
-          className="sk-stack sk-stack--2"
-          style={{ width: 320, margin: "0 auto" }}
-        >
-          <Progress value={step === "Done" ? 100 : 50} />
-          <span className="sk-caption">{step}…</span>
-        </div>
-      )}
       {!indexed && (
         <p className="sk-text-muted sk-small">
           No mailbox index answers for this drive: the switchboard behind it
           needs the email-index processor and subgraph.
         </p>
       )}
-      {(error ?? seedError) && (
-        <p className="sk-text-danger sk-small">{error ?? seedError}</p>
-      )}
+      {error && <p className="sk-text-danger sk-small">{error}</p>}
     </div>
   );
 }

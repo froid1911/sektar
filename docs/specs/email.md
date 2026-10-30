@@ -86,10 +86,9 @@ transforms" choice and can be revisited per workflow.
   standalone Connect), `hosts/vetra/host.js` (served by the studio switchboard,
   attached by the studio Connect as a remote); `hosts/cli` derives its remote
   list from the switchboard's drives.
-- One folder per mailbox at the drive root (`editors/sektar/kit/mail.ts`
-  `captureEmail`); attachments go through `attachFile`: preprocess → dispatch
-  `ADD_ATTACHMENT` with the ref → upload, in that order, because the store
-  refuses bytes for a ref no document carries.
+- One folder per mailbox at the drive root; attachments go preprocess →
+  dispatch `ADD_ATTACHMENT` with the ref → upload, in that order, because the
+  store refuses bytes for a ref no document carries.
 - Productivity Center nav: "Mail" → `/d/mail`.
 
 ## How a mailbox is listed

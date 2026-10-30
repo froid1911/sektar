@@ -8,6 +8,7 @@ import {
 } from "../../../../../editors/sektar/components/TransactionDetail.js";
 import {
   categorizeTransaction,
+  useOpenIntegrations,
   useSektarDrive,
 } from "../../../../../editors/sektar/kit/data.js";
 import {
@@ -43,9 +44,9 @@ import {
   Table,
   Tabs,
 } from "../../../../../editors/sektar/kit/ui.js";
+import { Connecting } from "../../-shared/connecting.js";
 import { ImportPanel } from "../../-shared/forms.js";
 import { useSearch } from "../../-shared/search.js";
-import { SetupState } from "../../-shared/setup.js";
 import { accountsByName } from "../../../../../editors/sektar/kit/account-order.js";
 
 export const Route = createFileRoute("/_app/finops/transactions")({
@@ -67,6 +68,7 @@ const NO_ROWS: (TransactionRow | undefined)[] = [];
 
 function TransactionsPage() {
   const drive = useSektarDrive();
+  const openIntegrations = useOpenIntegrations();
   const accountIndex = useAccountIndex(drive);
   const accounts = accountIndex ?? [];
   const { query } = useSearch();
@@ -161,8 +163,15 @@ function TransactionsPage() {
   const contactName = (id: string | null | undefined) =>
     id ? contactNames.get(id) : undefined;
 
-  if (!drive || (accountIndex !== undefined && accountIndex.length === 0))
-    return <SetupState what="bank accounts" />;
+  if (!drive) return <Connecting />;
+
+  // Nothing came in yet, rather than nothing under this filter or search.
+  const none =
+    list.counts?.all === 0 &&
+    accountId === "ALL" &&
+    status === "ALL" &&
+    !query &&
+    !list.error;
 
   return (
     <div className="sk-page sk-stack sk-stack--6">
@@ -229,12 +238,29 @@ function TransactionsPage() {
         {!list.loaded ? (
           <div className="sk-small sk-text-muted">Loading transactions…</div>
         ) : list.total === 0 && !list.stale ? (
-          <EmptyState icon="transactions" title="Nothing here">
+          <EmptyState
+            icon="transactions"
+            title={none ? "No transactions yet" : "Nothing here"}
+            action={
+              none && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="sync"
+                  onClick={openIntegrations}
+                >
+                  Open Integrations
+                </Button>
+              )
+            }
+          >
             {list.error
               ? `The transactions could not be loaded: ${list.error}`
               : query
                 ? `No transactions match “${query}”.`
-                : "Import a bank or card statement to get started."}
+                : none
+                  ? "Connect your bank in Integrations, or import a statement."
+                  : "No transactions in this view."}
           </EmptyState>
         ) : (
           <Table compact stack>

@@ -32,7 +32,7 @@ import {
   PAID_WITH,
   toDateInput,
 } from "../../../../editors/sektar/kit/format.js";
-import { COMPANY, TEAM } from "../../../../editors/sektar/kit/seed.js";
+import { useUserName } from "../../../../editors/sektar/kit/user-name.js";
 import {
   Button,
   Field,
@@ -274,7 +274,8 @@ export function NewExpensePanel({
   onCreated: (id: string) => void;
 }) {
   const [title, setTitle] = useState("");
-  const [submitter, setSubmitter] = useState(TEAM[0]);
+  const userName = useUserName();
+  const [submitter, setSubmitter] = useState(userName);
   const [items, setItems] = useState<
     (Omit<NewExpenseItem, "spentAt"> & { date: string })[]
   >([
@@ -288,7 +289,9 @@ export function NewExpensePanel({
   ]);
   const [busy, setBusy] = useState(false);
   const valid =
-    title.trim() && items.some((i) => i.merchant.trim() && i.amount > 0);
+    title.trim() &&
+    submitter.trim() &&
+    items.some((i) => i.merchant.trim() && i.amount > 0);
   const total = items.reduce((s, i) => s + (i.amount || 0), 0);
   const update = (i: number, patch: Partial<(typeof items)[number]>) =>
     setItems(items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
@@ -309,8 +312,7 @@ export function NewExpensePanel({
               setBusy(true);
               void createExpenseReport(drive, {
                 title: title.trim(),
-                submitterName: submitter,
-                submitterEmail: `${submitter.split(" ")[0].toLowerCase()}@juniper.studio`,
+                submitterName: submitter.trim(),
                 items: items
                   .filter((i) => i.merchant.trim() && i.amount > 0)
                   .map(({ date, ...i }) => ({
@@ -338,17 +340,12 @@ export function NewExpensePanel({
           autoFocus
         />
       </Field>
-      <Field label="Submitted by">
-        <Select
+      <Field label="Submitted by" required>
+        <Input
           value={submitter}
           onChange={(e) => setSubmitter(e.target.value)}
-        >
-          {TEAM.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </Select>
+          placeholder="Your name"
+        />
       </Field>
       <div className="sk-stack sk-stack--3">
         <div className="sk-eyebrow">Receipts</div>
@@ -672,7 +669,7 @@ export function ImportPanel({
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder={`${COMPANY.name} current`}
+            placeholder="Business current"
           />
         </Field>
       )}
@@ -689,7 +686,7 @@ export function ImportPanel({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={
-            "2026-10-14, -89.00, Notion Labs, Team plan\n2026-10-15, 2420.00, Maple & Finch, Photo day"
+            "2026-10-14, -89.00, Notion Labs, Team plan\n2026-10-15, 2420.00, Client payment, Invoice 1042"
           }
         />
       </Field>

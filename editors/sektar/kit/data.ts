@@ -1,6 +1,6 @@
 // Reading and writing Sektar's documents. Writes are imperative helpers
-// around addDocument/dispatchActions so boards, panels, editors and the seed
-// share one vocabulary. Lists, counts and pickers do not read documents:
+// around addDocument/dispatchActions so boards, panels and editors share one
+// vocabulary. Lists, counts and pickers do not read documents:
 // they come from the finance index (kit/finance-index.ts); the write store
 // is read only for the one document that is open.
 import { findDrive } from "../../../processors/drive-ids/index.js";
@@ -10,6 +10,7 @@ import {
   dispatchActions,
   getPHStore,
   loadDriveNodes,
+  openTarget,
   useDrives,
 } from "@powerhousedao/reactor-browser";
 import type {
@@ -82,6 +83,16 @@ export function useSektarDrive(): DocumentDriveDocument | undefined {
   return findDrive(drives, SEKTAR_DRIVE_SLUG);
 }
 
+/** Opens the Integrations drive: where a page sends someone with nothing connected. */
+export function useOpenIntegrations(): () => void {
+  const drives = useDrives();
+  return () =>
+    openTarget({
+      // The converted drive where this store has it, else the one under the slug
+      driveSlug: findDrive(drives, "integrations")?.header.id ?? "integrations",
+    });
+}
+
 /**
  * A drive's nodes as a list, for either drive type: a node list read
  * through `read.drives` (`useDriveNodes`, `loadDriveNodes`) as is, a legacy
@@ -147,8 +158,8 @@ export function fileNodeOf(
 }
 
 /** Folders created this session, so a batch of writes against one (stale)
- * drive snapshot — the seed, a multi-document import — reuses the folder it
- * just made instead of adding "(copy) n" siblings. */
+ * drive snapshot — a multi-document import, say — reuses the folder it just
+ * made instead of adding "(copy) n" siblings. */
 const createdFolders = new Map<string, string>();
 
 /**

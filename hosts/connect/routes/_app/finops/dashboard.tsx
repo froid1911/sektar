@@ -1,6 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
+import {
+  useOpenIntegrations,
+  useSektarDrive,
+} from "../../../../../editors/sektar/kit/data.js";
 import {
   accountKindOf,
   categoryOf,
@@ -18,7 +21,6 @@ import {
   relativeDays,
   plural,
 } from "../../../../../editors/sektar/kit/format.js";
-import { COMPANY } from "../../../../../editors/sektar/kit/seed.js";
 import {
   greeting,
   useUserName,
@@ -30,6 +32,7 @@ import {
   Button,
   Card,
   Donut,
+  EmptyState,
   HeroCard,
   IconTile,
   Legend,
@@ -43,13 +46,13 @@ import {
 import artDark from "../../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
 import artLight from "../../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
 import hero from "../../../../../icons/sektar_background_2048x1152.webp";
+import { Connecting } from "../../-shared/connecting.js";
 import {
   ImportPanel,
   NewContactPanel,
   NewExpensePanel,
   NewInvoicePanel,
 } from "../../-shared/forms.js";
-import { SetupState } from "../../-shared/setup.js";
 import { recentAccountsWithBalance } from "../../../../../editors/sektar/kit/account-order.js";
 
 export const Route = createFileRoute("/_app/finops/dashboard")({
@@ -59,6 +62,7 @@ export const Route = createFileRoute("/_app/finops/dashboard")({
 
 function Dashboard() {
   const drive = useSektarDrive();
+  const openIntegrations = useOpenIntegrations();
   const userName = useUserName();
   // The dashboard's instant: fixed for the visit, so the numbers do not re-ask per render.
   const [now] = useState(() => Date.now());
@@ -114,16 +118,7 @@ function Dashboard() {
     };
   }, [index, awaitingClaims, claimCounts]);
 
-  if (
-    !drive ||
-    (index &&
-      accountIndex &&
-      accountIndex.length === 0 &&
-      index.invoiceCount === 0 &&
-      claimCounts?.all === 0)
-  ) {
-    return <SetupState what="books" />;
-  }
+  if (!drive) return <Connecting />;
   if (!stats) {
     return (
       <div className="sk-page sk-stack sk-stack--6">
@@ -162,13 +157,17 @@ function Dashboard() {
       to: "/finops/expenses" as const,
     })),
   ];
+  // A card with nothing behind it says so, rather than drawing an empty chart.
+  const noCashFlow = stats.months.every((m) => m.in === 0 && m.out === 0);
+  const noAccounts = accountIndex?.length === 0;
+  const noTransactions = stats.transactionCount === 0;
 
   return (
     <div className="sk-page sk-stack sk-stack--6">
       <PageHeader
         display
         title={greeting(new Date(now).getHours(), userName)}
-        lead={`Here's what's happening with ${COMPANY.name} today.`}
+        lead="Here's what's happening today."
         art={{ light: artLight, dark: artDark }}
         actions={
           <Button variant="secondary" icon="calendar">
@@ -187,7 +186,9 @@ function Dashboard() {
               accounts.filter((a) => a.kind !== "CREDIT_CARD").length,
               "account",
             )}`}
-            spark={stats.months.map((m) => m.in - m.out)}
+            spark={
+              noCashFlow ? undefined : stats.months.map((m) => m.in - m.out)
+            }
           />
         </div>
         <div className="c3">
@@ -195,9 +196,13 @@ function Dashboard() {
             icon="growth"
             label="Money in this month"
             value={money(stats.thisMonth.in, "EUR", { compact: true })}
-            delta={stats.pct(stats.thisMonth.in, stats.lastMonth.in)}
-            foot="vs. last month"
-            spark={stats.months.map((m) => m.in)}
+            delta={
+              noCashFlow
+                ? undefined
+                : stats.pct(stats.thisMonth.in, stats.lastMonth.in)
+            }
+            foot={noCashFlow ? "nothing in yet" : "vs. last month"}
+            spark={noCashFlow ? undefined : stats.months.map((m) => m.in)}
           />
         </div>
         <div className="c3">
@@ -225,65 +230,94 @@ function Dashboard() {
           <Card
             title="Cash flow"
             actions={
-              <Legend
-                items={[
-                  { label: "Money in" },
-                  { label: "Money out", color: "var(--sk-chart-3)" },
-                ]}
-              />
+              !noCashFlow && (
+                <Legend
+                  items={[
+                    { label: "Money in" },
+                    { label: "Money out", color: "var(--sk-chart-3)" },
+                  ]}
+                />
+              )
             }
           >
-            <Bars
-              axis
-              ticks={4}
-              format={(v) => money(v, "EUR", { compact: true })}
-              groups={stats.months.map((m) => ({
-                label: m.label,
-                values: [Math.round(m.in), Math.round(m.out)],
-              }))}
-            />
+            {noCashFlow ? (
+              <EmptyState icon="growth" title="No cash flow yet">
+                Money in and out shows here once transactions come in.
+              </EmptyState>
+            ) : (
+              <Bars
+                axis
+                ticks={4}
+                format={(v) => money(v, "EUR", { compact: true })}
+                groups={stats.months.map((m) => ({
+                  label: m.label,
+                  values: [Math.round(m.in), Math.round(m.out)],
+                }))}
+              />
+            )}
           </Card>
         </div>
         <div className="c3">
           <Card
             title="Accounts"
             actions={
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => void navigate({ to: "/finops/transactions" })}
-              >
-                View all
-              </Button>
+              !noAccounts && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => void navigate({ to: "/finops/transactions" })}
+                >
+                  View all
+                </Button>
+              )
             }
           >
-            <ul className="sk-list sk-list--divided">
-              {recentAccountsWithBalance(accounts).map((a) => (
-                <li key={a.id}>
-                  <ListItem
-                    icon={
-                      <IconTile
-                        name={a.kind === "CREDIT_CARD" ? "card" : "bank"}
-                        size="sm"
-                      />
-                    }
-                    title={a.name}
-                    meta={`${ACCOUNT_KIND[accountKindOf(a.kind)]} · ${a.institution ?? ""}`}
-                    value={
-                      <span className="sk-tabular sk-weight-medium">
-                        {money(a.balance, a.currency)}
-                      </span>
-                    }
-                    onClick={() =>
-                      void navigate({
-                        to: "/finops/transactions",
-                        search: { account: a.id },
-                      })
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
+            {noAccounts ? (
+              <EmptyState
+                icon="bank"
+                title="No accounts yet"
+                action={
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="sync"
+                    onClick={openIntegrations}
+                  >
+                    Open Integrations
+                  </Button>
+                }
+              >
+                Connect your bank to see your balances here.
+              </EmptyState>
+            ) : (
+              <ul className="sk-list sk-list--divided">
+                {recentAccountsWithBalance(accounts).map((a) => (
+                  <li key={a.id}>
+                    <ListItem
+                      icon={
+                        <IconTile
+                          name={a.kind === "CREDIT_CARD" ? "card" : "bank"}
+                          size="sm"
+                        />
+                      }
+                      title={a.name}
+                      meta={`${ACCOUNT_KIND[accountKindOf(a.kind)]} · ${a.institution ?? ""}`}
+                      value={
+                        <span className="sk-tabular sk-weight-medium">
+                          {money(a.balance, a.currency)}
+                        </span>
+                      }
+                      onClick={() =>
+                        void navigate({
+                          to: "/finops/transactions",
+                          search: { account: a.id },
+                        })
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         </div>
         <div className="c3 sk-stack">
@@ -323,111 +357,133 @@ function Dashboard() {
           <Card
             title="Recent transactions"
             actions={
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => void navigate({ to: "/finops/transactions" })}
-              >
-                All transactions
-              </Button>
+              !noTransactions && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => void navigate({ to: "/finops/transactions" })}
+                >
+                  All transactions
+                </Button>
+              )
             }
           >
-            <Table compact stack>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Description</th>
-                  <th>Category</th>
-                  <th className="is-num">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.recent.map((tx) => (
-                  <tr key={tx.id}>
-                    <td className="is-muted sk-nowrap">
-                      {fmtShortDate(tx.bookedAt)}
-                    </td>
-                    <td>
-                      <div className="sk-table__primary">{tx.counterparty}</div>
-                      <div className="sk-table__secondary">
-                        {tx.description ??
-                          accounts.find((a) => a.id === tx.accountId)?.name}
-                      </div>
-                    </td>
-                    <td>
-                      <Badge tone={CATEGORY[categoryOf(tx.category)].tone}>
-                        {CATEGORY[categoryOf(tx.category)].label}
-                      </Badge>
-                    </td>
-                    <td
-                      className={
-                        tx.amount > 0 ? "is-num sk-amount--in" : "is-num"
-                      }
-                    >
-                      {money(tx.amount, tx.currency, {
-                        signed: true,
-                      })}
-                    </td>
+            {noTransactions ? (
+              <EmptyState icon="transactions" title="No transactions yet">
+                Your latest bank and card activity shows here.
+              </EmptyState>
+            ) : (
+              <Table compact stack>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th className="is-num">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
+                </thead>
+                <tbody>
+                  {stats.recent.map((tx) => (
+                    <tr key={tx.id}>
+                      <td className="is-muted sk-nowrap">
+                        {fmtShortDate(tx.bookedAt)}
+                      </td>
+                      <td>
+                        <div className="sk-table__primary">
+                          {tx.counterparty}
+                        </div>
+                        <div className="sk-table__secondary">
+                          {tx.description ??
+                            accounts.find((a) => a.id === tx.accountId)?.name}
+                        </div>
+                      </td>
+                      <td>
+                        <Badge tone={CATEGORY[categoryOf(tx.category)].tone}>
+                          {CATEGORY[categoryOf(tx.category)].label}
+                        </Badge>
+                      </td>
+                      <td
+                        className={
+                          tx.amount > 0 ? "is-num sk-amount--in" : "is-num"
+                        }
+                      >
+                        {money(tx.amount, tx.currency, {
+                          signed: true,
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
           </Card>
         </div>
         <div className="c3">
           <Card title="Spend by category">
-            <div
-              className="sk-stack sk-stack--4"
-              style={{ alignItems: "center" }}
-            >
-              <Donut
-                slices={stats.spendSlices.map(([, v]) => ({ value: v }))}
-                value={money(
-                  stats.spendSlices.reduce((s, [, v]) => s + v, 0),
-                  "EUR",
-                  { compact: true },
-                )}
-                label="last 90 days"
-              />
-              <Legend
-                items={stats.spendSlices.map(([c, v]) => ({
-                  label: CATEGORY[categoryOf(c)].label,
-                  value: money(v, "EUR", { compact: true }),
-                }))}
-              />
-            </div>
+            {stats.spendSlices.length === 0 ? (
+              <EmptyState icon="pie" title="No spending yet">
+                The last 90 days show here.
+              </EmptyState>
+            ) : (
+              <div
+                className="sk-stack sk-stack--4"
+                style={{ alignItems: "center" }}
+              >
+                <Donut
+                  slices={stats.spendSlices.map(([, v]) => ({ value: v }))}
+                  value={money(
+                    stats.spendSlices.reduce((s, [, v]) => s + v, 0),
+                    "EUR",
+                    { compact: true },
+                  )}
+                  label="last 90 days"
+                />
+                <Legend
+                  items={stats.spendSlices.map(([c, v]) => ({
+                    label: CATEGORY[categoryOf(c)].label,
+                    value: money(v, "EUR", { compact: true }),
+                  }))}
+                />
+              </div>
+            )}
           </Card>
         </div>
         <div className="c3">
           <Card title="Books readiness">
-            <div className="sk-stack sk-stack--4">
-              <div className="sk-row sk-row--4">
-                <Ring small value={stats.readiness} />
-                <p className="sk-small sk-text-secondary">
-                  {stats.toReview === 0
-                    ? "Every transaction is categorised. You're on track."
-                    : `${plural(stats.toReview, "transaction")} still ${
-                        stats.toReview === 1 ? "needs" : "need"
-                      } a category before the VAT return.`}
-                </p>
+            {noTransactions ? (
+              <EmptyState icon="reports" title="Nothing to review yet">
+                This fills in as transactions come in.
+              </EmptyState>
+            ) : (
+              <div className="sk-stack sk-stack--4">
+                <div className="sk-row sk-row--4">
+                  <Ring small value={stats.readiness} />
+                  <p className="sk-small sk-text-secondary">
+                    {stats.toReview === 0
+                      ? "Every transaction is categorised. You're on track."
+                      : `${plural(stats.toReview, "transaction")} still ${
+                          stats.toReview === 1 ? "needs" : "need"
+                        } a category before the VAT return.`}
+                  </p>
+                </div>
+                <div className="sk-stack sk-stack--3">
+                  {stats.readinessRows.map((r) => (
+                    <div key={r.label}>
+                      <div className="sk-caption sk-mb-1">{r.label}</div>
+                      <ProgressRow value={r.value} />
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  variant="primary"
+                  block
+                  icon="arrow-right"
+                  onClick={() => void navigate({ to: "/finops/transactions" })}
+                >
+                  Review transactions
+                </Button>
               </div>
-              <div className="sk-stack sk-stack--3">
-                {stats.readinessRows.map((r) => (
-                  <div key={r.label}>
-                    <div className="sk-caption sk-mb-1">{r.label}</div>
-                    <ProgressRow value={r.value} />
-                  </div>
-                ))}
-              </div>
-              <Button
-                variant="primary"
-                block
-                icon="arrow-right"
-                onClick={() => void navigate({ to: "/finops/transactions" })}
-              >
-                Review transactions
-              </Button>
-            </div>
+            )}
           </Card>
         </div>
 

@@ -287,6 +287,7 @@ export function InvoicesWorkspace({
 
   const panes: PanesProps = {
     selectedId,
+    listEmpty: list.total === 0,
     row: selectedRow,
     asked,
     now,
@@ -360,15 +361,39 @@ export function InvoicesWorkspace({
           {list.total === 0 ? (
             <div style={{ padding: "var(--sk-space-6)" }}>
               {list.loaded && !list.stale ? (
-                <EmptyState icon="invoice" title="Nothing here">
-                  {list.error
-                    ? `The invoices could not be loaded: ${list.error}`
-                    : query.trim()
-                      ? "No invoice matches that search."
-                      : view !== "all"
-                        ? `No ${pickView.label.toLowerCase()} ${direction === "OUTGOING" ? "sales invoices" : "purchase bills"}.`
-                        : `No ${direction === "OUTGOING" ? "sales invoices" : "purchase bills"} yet.`}
-                </EmptyState>
+                list.error || query.trim() || view !== "all" ? (
+                  <EmptyState icon="invoice" title="Nothing here">
+                    {list.error
+                      ? `The invoices could not be loaded: ${list.error}`
+                      : query.trim()
+                        ? "No invoice matches that search."
+                        : `No ${pickView.label.toLowerCase()} ${direction === "OUTGOING" ? "sales invoices" : "purchase bills"}.`}
+                  </EmptyState>
+                ) : direction === "OUTGOING" ? (
+                  <EmptyState
+                    icon="invoice"
+                    title="No invoices yet"
+                    action={
+                      <Button variant="primary" size="sm" icon="plus" onClick={() => onNew(direction)}>
+                        New invoice
+                      </Button>
+                    }
+                  >
+                    Write your first invoice and send it to a customer.
+                  </EmptyState>
+                ) : (
+                  <EmptyState
+                    icon="cart"
+                    title="No bills yet"
+                    action={
+                      <Button variant="primary" size="sm" icon="plus" onClick={() => onNew(direction)}>
+                        New bill
+                      </Button>
+                    }
+                  >
+                    Add a bill you received from a supplier.
+                  </EmptyState>
+                )
               ) : (
                 <div className="sk-stack sk-stack--4">
                   {[0, 1, 2, 3, 4].map((i) => (
@@ -432,6 +457,8 @@ class LoadBoundary extends Component<{ fallback: ReactNode; children: ReactNode 
 
 interface PanesProps {
   selectedId: string | null;
+  /** Nothing in the list: no reason to say pick one */
+  listEmpty: boolean;
   /** The open invoice's list row, while it is known */
   row: InvoiceRow | null;
   /** The invoice asked for by id, whose direction is to follow */
@@ -457,6 +484,7 @@ function SelectedInvoicePanes(props: PanesProps) {
 /** The invoice and what is open beside it. */
 function InvoicePanes({
   selectedId,
+  listEmpty,
   row,
   asked,
   now,
@@ -541,11 +569,13 @@ function InvoicePanes({
         header={badge}
       >
         {!selectedId ? (
-          <div style={{ padding: "var(--sk-space-6)" }}>
-            <EmptyState icon="invoice" title="Pick an invoice">
-              It opens here, line by line; a line opens beside it with its receipt.
-            </EmptyState>
-          </div>
+          !listEmpty && (
+            <div style={{ padding: "var(--sk-space-6)" }}>
+              <EmptyState icon="invoice" title="Pick an invoice">
+                It opens here, line by line; a line opens beside it with its receipt.
+              </EmptyState>
+            </div>
+          )
         ) : !selected ? (
           status === "loading" ? (
             <div className="sk-stack sk-stack--4" style={{ padding: "var(--sk-space-6)" }} aria-busy="true">
