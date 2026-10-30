@@ -4,27 +4,33 @@
  */
 import { createAction } from "document-model";
 import {
+  ClearGrantInputSchema,
   InitializeInputSchema,
   SetAccessInputSchema,
   SetCalendarSourceInputSchema,
   SetConnectionInputSchema,
   SetEmailSourceInputSchema,
+  SetGrantInputSchema,
   SetTransactionsSourceInputSchema,
 } from "../schema/zod.js";
 import type {
+  ClearGrantInput,
   InitializeInput,
   SetAccessInput,
   SetCalendarSourceInput,
   SetConnectionInput,
   SetEmailSourceInput,
+  SetGrantInput,
   SetTransactionsSourceInput,
 } from "../types.js";
 import type {
+  ClearGrantAction,
   InitializeAction,
   SetAccessAction,
   SetCalendarSourceAction,
   SetConnectionAction,
   SetEmailSourceAction,
+  SetGrantAction,
   SetTransactionsSourceAction,
 } from "./actions.js";
 
@@ -79,5 +85,23 @@ export const setTransactionsSource = (input: SetTransactionsSourceInput) =>
     { ...input },
     undefined,
     SetTransactionsSourceInputSchema,
+    "global",
+  );
+
+export const setGrant = (input: SetGrantInput) =>
+  createAction<SetGrantAction>(
+    "SET_GRANT",
+    { ...input },
+    undefined,
+    SetGrantInputSchema,
+    "global",
+  );
+
+export const clearGrant = (input: ClearGrantInput) =>
+  createAction<ClearGrantAction>(
+    "CLEAR_GRANT",
+    { ...input },
+    undefined,
+    ClearGrantInputSchema,
     "global",
   );

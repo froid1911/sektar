@@ -4,11 +4,13 @@
  */
 import type { Action } from "document-model";
 import type {
+  ClearGrantInput,
   InitializeInput,
   SetAccessInput,
   SetCalendarSourceInput,
   SetConnectionInput,
   SetEmailSourceInput,
+  SetGrantInput,
   SetTransactionsSourceInput,
 } from "../types.js";
 
@@ -36,6 +38,14 @@ export type SetTransactionsSourceAction = Action & {
   type: "SET_TRANSACTIONS_SOURCE";
   input: SetTransactionsSourceInput;
 };
+export type SetGrantAction = Action & {
+  type: "SET_GRANT";
+  input: SetGrantInput;
+};
+export type ClearGrantAction = Action & {
+  type: "CLEAR_GRANT";
+  input: ClearGrantInput;
+};
 
 export type IntegrationSetupAction =
   | InitializeAction
@@ -43,4 +53,6 @@ export type IntegrationSetupAction =
   | SetConnectionAction
   | SetCalendarSourceAction
   | SetEmailSourceAction
-  | SetTransactionsSourceAction;
+  | SetTransactionsSourceAction
+  | SetGrantAction
+  | ClearGrantAction;

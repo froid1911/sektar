@@ -16,7 +16,9 @@ import {
   removeBackfill,
   setBackfillEnabled,
   setCalendarSource,
+  clearGrant,
   setConnection,
+  setGrant,
   setLiveEnabled,
   setLiveInterval,
   utils,
@@ -342,6 +344,40 @@ describe("integration document", () => {
       created(),
       setTransactionsSource({ bankConnectionId: "x", accounts: [] }),
       /transactions integration/,
+    );
+  });
+
+  it("records who lets Sektar write, and takes it back", () => {
+    const at = "2026-10-28T12:00:00.000Z";
+    const input = {
+      statement: "a.b.c",
+      person: "0xabc",
+      grantedAt: at,
+      expiresAt: at,
+    };
+    const before = created().state.global;
+    expect(before.grant).toBeNull();
+
+    const granted = reducer(created(), setGrant(input));
+    expect(granted.state.global.grant).toEqual(input);
+    // Nothing the user asked for changed: the reconciler commits nothing new
+    expect(granted.state.global.intent.generation).toBe(
+      before.intent.generation,
+    );
+
+    expect(reducer(granted, clearGrant({})).state.global.grant).toBeNull();
+  });
+
+  it("refuses a grant before INITIALIZE", () => {
+    rejects(
+      utils.createDocument(),
+      setGrant({
+        statement: "x",
+        person: "y",
+        grantedAt: "2026-10-28T12:00:00.000Z",
+        expiresAt: "2026-10-28T12:00:00.000Z",
+      }),
+      /Set up the integration first/,
     );
   });
 

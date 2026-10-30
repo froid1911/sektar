@@ -1,28 +1,28 @@
 export type ErrorCode =
-  | "AlreadyInitializedError"
-  | "NotInitializedError"
-  | "WrongKindError";
+  | "ALREADY_INITIALIZED"
+  | "NOT_INITIALIZED"
+  | "WRONG_KIND";
 
 export interface ReducerError {
   errorCode: ErrorCode;
 }
 
 export class AlreadyInitializedError extends Error implements ReducerError {
-  errorCode = "AlreadyInitializedError" as ErrorCode;
+  errorCode = "ALREADY_INITIALIZED" as ErrorCode;
   constructor(message = "AlreadyInitializedError") {
     super(message);
   }
 }
 
 export class NotInitializedError extends Error implements ReducerError {
-  errorCode = "NotInitializedError" as ErrorCode;
+  errorCode = "NOT_INITIALIZED" as ErrorCode;
   constructor(message = "NotInitializedError") {
     super(message);
   }
 }
 
 export class WrongKindError extends Error implements ReducerError {
-  errorCode = "WrongKindError" as ErrorCode;
+  errorCode = "WRONG_KIND" as ErrorCode;
   constructor(message = "WrongKindError") {
     super(message);
   }
@@ -40,4 +40,6 @@ export const errors = {
   SetEmailSource: { WrongKindError },
 
   SetTransactionsSource: { WrongKindError },
+
+  SetGrant: { NotInitializedError },
 };
