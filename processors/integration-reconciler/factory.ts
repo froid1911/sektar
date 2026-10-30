@@ -25,15 +25,21 @@ const INTEGRATIONS_DRIVE = "integrations";
  * writer of a document cannot get a person to sign for their own key.
  */
 function serveRunnerFacts(module: IProcessorHostModule): void {
-  module.http?.get("runner", async () => {
-    const key = await loadRunnerKey();
-    return Response.json({
-      delegate: key.did,
-      environment: module.host?.key ?? null,
-      requiresPerson: module.host?.requiresPerson ?? false,
-      reactorConnectionId: await findReactorConnection(module.read),
+  try {
+    module.http?.get("runner", async () => {
+      const key = await loadRunnerKey();
+      return Response.json({
+        delegate: key.did,
+        environment: module.host?.key ?? null,
+        requiresPerson: module.host?.requiresPerson ?? false,
+        reactorConnectionId: await findReactorConnection(module.read),
+      });
     });
-  });
+  } catch (error) {
+    // This runs while the package's factory is built, so a throw here would
+    // cost every processor of the package and not only the grant step.
+    console.warn("[integration-reconciler] no runner route:", error);
+  }
 }
 
 export const integrationReconcilerFactoryBuilder: ProcessorFactoryBuilder = (
