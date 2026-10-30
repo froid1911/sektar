@@ -111,16 +111,6 @@ for (const tone of ["light", "dark"]) {
     path.join(OUT, `sektar_growth_${tone}.png`),
   );
 }
-// Legacy wide splash (setup screen in the app): lockup on cream with the mark bottom-right.
-const legacyLockup = await sharp(await lockup("light", "#57615C")).resize({ width: 1000 }).png().toBuffer();
-const growth = await png(svg("shapes/sektar-growth-double-curved-light.svg"), 700, 700).toBuffer();
-await sharp({ create: { width: 2048, height: 1152, channels: 4, background: "#F5F7F3" } })
-  .composite([
-    { input: growth, left: 2048 - 700, top: 1152 - 700 },
-    { input: legacyLockup, left: 524, top: 380 },
-  ])
-  .png()
-  .toFile(path.join(OUT, "sektar_splash_2048x1152.png"));
 
 // Home background: brand photo, cover-cropped, webp
 const photo = fs.readFileSync(path.join(D, "photos/workspace-with-lush-greenery.jpg"));
