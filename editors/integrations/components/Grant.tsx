@@ -43,11 +43,12 @@ export function Grant({
     setError(null);
     try {
       const facts = await fetchRunnerFacts(url);
-      if (!facts) throw new Error("This environment did not answer");
-      if (facts.requiresPerson && !granter) {
+      // A host that needs a person answers nobody until they have signed in.
+      if (!granter && (!facts || facts.requiresPerson)) {
         login();
         return;
       }
+      if (!facts) throw new Error("This environment did not answer");
       await ensureReactorConnection(facts, workflows?.header.id);
       await dispatchActions(
         [
