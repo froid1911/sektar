@@ -277,6 +277,50 @@ describe("the lookup", () => {
     ).rejects.toThrow(/could not be asked \(host serves no indexes\); nothing was written/);
   });
 
+  it("names a refusal as one, without guessing at a missing subgraph", async () => {
+    const refused: UpsertReactor["query"] = () =>
+      Promise.reject(new Error("Forbidden: authentication required"));
+    const failure = await indexByRemote({
+      reactor: { query: refused },
+      driveId: DRIVE,
+      documentType: TYPE,
+      keys: ["gmail:1"],
+    }).catch((error: unknown) => error as Error);
+    expect((failure as Error).message).toMatch(
+      /key index refused this run \(Forbidden: authentication required\); nothing was written/,
+    );
+    expect((failure as Error).message).not.toMatch(/installed/);
+  });
+
+  it("treats a refused read as a failure, so a granter who left creates no twins", async () => {
+    const refused: UpsertReactor["query"] = () =>
+      Promise.resolve({
+        data: null,
+        errors: [
+          { message: "Forbidden: 0xgone is not an admin of this host, so it reads no index" },
+        ],
+      });
+    await expect(
+      indexByRemote({
+        reactor: { query: refused },
+        driveId: DRIVE,
+        documentType: TYPE,
+        keys: ["gmail:1"],
+      }),
+    ).rejects.toThrow(/refused the lookup: Forbidden/);
+  });
+
+  it("finds an existing document for a run acting as a person", async () => {
+    const { query } = fakeIndex({ "gmail:1": "d1" });
+    const index = await indexByRemote({
+      reactor: { query },
+      driveId: DRIVE,
+      documentType: TYPE,
+      keys: ["gmail:1"],
+    });
+    expect(index.get("gmail:1")?.header.id).toBe("d1");
+  });
+
   it("pages through every document of the type and keys them by state", async () => {
     const reactor = fakeReactor(
       [
