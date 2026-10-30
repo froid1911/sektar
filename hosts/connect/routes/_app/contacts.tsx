@@ -32,9 +32,9 @@ import {
 } from "../../../../editors/sektar/kit/ui.js";
 import artDark from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
 import artLight from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
+import { Connecting } from "../-shared/connecting.js";
 import { NewContactPanel } from "../-shared/forms.js";
 import { useSearch } from "../-shared/search.js";
-import { SetupState } from "../-shared/setup.js";
 
 export const Route = createFileRoute("/_app/contacts")({
   validateSearch: (raw: Record<string, unknown>): { open?: string } => ({
@@ -110,11 +110,11 @@ function ContactsPage() {
     (_, i) => list.rowAt(i),
   );
 
-  if (
-    !drive ||
-    (indexCounts && indexCounts.all + indexCounts.archived === 0)
-  )
-    return <SetupState what="contacts" />;
+  if (!drive) return <Connecting />;
+
+  // Nobody at all yet, rather than nobody under this filter or search.
+  const none =
+    indexCounts?.all === 0 && indexCounts.archived === 0 && !query && !list.error;
 
   return (
     <div className="sk-page sk-stack sk-stack--6">
@@ -149,7 +149,10 @@ function ContactsPage() {
       {!list.loaded ? (
         <div className="sk-small sk-text-muted">Loading contacts…</div>
       ) : list.total === 0 && !list.stale ? (
-        <EmptyState icon="customers" title="No contacts here">
+        <EmptyState
+          icon="customers"
+          title={none ? "No contacts yet" : "No contacts here"}
+        >
           {list.error
             ? `The contacts could not be loaded: ${list.error}`
             : query

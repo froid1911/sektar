@@ -5,9 +5,9 @@ import { InvoicesWorkspace } from "../../../../../editors/sektar/components/invo
 import { useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
 import { useInvoiceList, type InvoiceView } from "../../../../../editors/sektar/kit/finance-index.js";
 import { useNow } from "../../../../../editors/sektar/kit/format.js";
+import { Connecting } from "../../-shared/connecting.js";
 import { NewInvoicePanel } from "../../-shared/forms.js";
 import { useSearch } from "../../-shared/search.js";
-import { SetupState } from "../../-shared/setup.js";
 
 export const Route = createFileRoute("/_app/finops/invoices")({
   validateSearch: (raw: Record<string, unknown>): { open?: string } => ({
@@ -29,10 +29,7 @@ function InvoicesPage() {
   const [view, setView] = useState<InvoiceView>("all");
   const list = useInvoiceList({ direction, view, query, now });
 
-  // No invoice on either side yet (as the index has it): the setup state,
-  // unless one was just made or asked for (the index may not have it yet).
-  const none = list.counts !== undefined && list.counts.outgoing + list.counts.incoming === 0;
-  if (!drive || (none && !created && !openParam)) return <SetupState what="invoices" />;
+  if (!drive) return <Connecting />;
 
   return (
     <>

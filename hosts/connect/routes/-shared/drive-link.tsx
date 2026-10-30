@@ -21,7 +21,7 @@ export function OpenDrive({ slug, label }: { slug: string; label: string }) {
   }, [drive, navigate]);
   return (
     <p className="sk-text-muted">
-      {drive ? `Opening ${label}…` : `The ${label} drive is not available yet.`}
+      {drive ? `Opening ${label}…` : "Connecting…"}
     </p>
   );
 }

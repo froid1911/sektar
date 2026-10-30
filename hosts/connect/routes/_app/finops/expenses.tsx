@@ -29,14 +29,15 @@ import {
   Avatar,
   Badge,
   Button,
+  EmptyState,
   PageHeader,
   SidePanel,
   Stat,
   cx,
 } from "../../../../../editors/sektar/kit/ui.js";
+import { Connecting } from "../../-shared/connecting.js";
 import { NewExpensePanel } from "../../-shared/forms.js";
 import { useSearch } from "../../-shared/search.js";
-import { SetupState } from "../../-shared/setup.js";
 
 export const Route = createFileRoute("/_app/finops/expenses")({
   validateSearch: (raw: Record<string, unknown>): { open?: string } => ({
@@ -98,8 +99,7 @@ function ExpensesBoard() {
   const awaiting = statusOf(totals, "SUBMITTED");
   const approved = statusOf(totals, "APPROVED");
 
-  if (!drive || totals?.all === 0)
-    return <SetupState what="expense claims" />;
+  if (!drive) return <Connecting />;
 
   return (
     <div className="sk-page sk-stack sk-stack--6">
@@ -138,18 +138,24 @@ function ExpensesBoard() {
         />
       </div>
 
-      <div className="sk-board">
-        {COLUMNS.map((col) => (
-          <ExpenseColumn
-            key={col.label}
-            col={col}
-            query={query}
-            counts={searched}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
-        ))}
-      </div>
+      {totals?.all === 0 ? (
+        <EmptyState icon="wallet" title="No expense claims yet">
+          Start a claim to group receipts and send them for approval.
+        </EmptyState>
+      ) : (
+        <div className="sk-board">
+          {COLUMNS.map((col) => (
+            <ExpenseColumn
+              key={col.label}
+              col={col}
+              query={query}
+              counts={searched}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+          ))}
+        </div>
+      )}
 
       {selected && (
         <SidePanel eyebrow="Expense claim" onClose={() => setSelectedId(null)}>
