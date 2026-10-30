@@ -119,14 +119,23 @@ vi.mock("document-models/expense-report", async (original) => ({
   useExpenseReportDocumentById: () => [undefined],
 }));
 
-type PageRoute = { options: { component: ComponentType } };
-const PAGES: [string, PageRoute, RegExp][] = [
-  ["Dashboard", DashboardRoute, /Create invoice/],
-  ["Contacts", ContactsRoute, /New contact/],
-  ["Invoices", InvoicesRoute, /New invoice/],
-  ["Expenses", ExpensesRoute, /New claim/],
-  ["Transactions", TransactionsRoute, /Import feed/],
-] as unknown as [string, PageRoute, RegExp][];
+/** A route's page: the route comes from the mock above, which keeps its options. */
+const pageOf = (route: { options: object }) =>
+  (route.options as { component: ComponentType }).component;
+
+const Contacts = pageOf(ContactsRoute);
+const Dashboard = pageOf(DashboardRoute);
+const Expenses = pageOf(ExpensesRoute);
+const Invoices = pageOf(InvoicesRoute);
+const Transactions = pageOf(TransactionsRoute);
+
+const PAGES: [string, ComponentType, RegExp][] = [
+  ["Dashboard", Dashboard, /Create invoice/],
+  ["Contacts", Contacts, /New contact/],
+  ["Invoices", Invoices, /New invoice/],
+  ["Expenses", Expenses, /New claim/],
+  ["Transactions", Transactions, /Import feed/],
+];
 
 /** Anything of the demo company, or of the set-up page that offered it. */
 const DEMO =
@@ -164,9 +173,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe.each(PAGES)("%s", (_, route, createAction) => {
-  const Page = route.options.component;
-
+describe.each(PAGES)("%s", (_, Page, createAction) => {
   it("renders with nothing in the books: its create action, no demo company", () => {
     const text = show(<Page />);
     expect(text).toMatch(createAction);
@@ -190,13 +197,13 @@ describe.each(PAGES)("%s", (_, route, createAction) => {
 
 describe("what an empty page offers", () => {
   it("Contacts says there are none yet", () => {
-    expect(show(<ContactsRoute.options.component />)).toContain(
+    expect(show(<Contacts />)).toContain(
       "No contacts yet",
     );
   });
 
   it("Invoices offers the first invoice, and that opens the form", () => {
-    const text = show(<InvoicesRoute.options.component />);
+    const text = show(<Invoices />);
     expect(text).toContain("No invoices yet");
     expect(text).not.toContain("Pick an invoice");
     act(() => button("New invoice").click());
@@ -204,20 +211,20 @@ describe("what an empty page offers", () => {
   });
 
   it("Expenses says there are no claims yet, instead of an empty board", () => {
-    const text = show(<ExpensesRoute.options.component />);
+    const text = show(<Expenses />);
     expect(text).toContain("No expense claims yet");
     expect(text).not.toContain("To approve");
   });
 
   it("Transactions points at Integrations", () => {
-    const text = show(<TransactionsRoute.options.component />);
+    const text = show(<Transactions />);
     expect(text).toContain("No transactions yet");
     act(() => button("Open Integrations").click());
     expect(app.openIntegrations).toHaveBeenCalledOnce();
   });
 
   it("the dashboard says each card has nothing yet, instead of drawing it", () => {
-    const text = show(<DashboardRoute.options.component />);
+    const text = show(<Dashboard />);
     expect(text).toContain("Here's what's happening today.");
     for (const card of [
       "No cash flow yet",
