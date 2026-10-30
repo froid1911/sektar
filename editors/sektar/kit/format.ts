@@ -88,10 +88,6 @@ export function relativeDays(
   return diff > 0 ? `in ${diff} days` : `${-diff} days ago`;
 }
 
-export function isoDaysAgo(days: number, now = Date.now()): string {
-  return new Date(now - days * DAY).toISOString();
-}
-
 export function toDateInput(iso: string | null | undefined): string {
   return iso ? iso.slice(0, 10) : "";
 }
