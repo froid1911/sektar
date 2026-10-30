@@ -1,6 +1,8 @@
 import {
   addDocument,
   dispatchActions,
+  useRenown,
+  useRenownAuth,
   useSelectedDrive,
 } from "@powerhousedao/reactor-browser";
 import type {
@@ -9,7 +11,7 @@ import type {
   IntervalUnit,
 } from "document-models/integration";
 import { generateId } from "document-model";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   KIND_COPY,
   accessOptions,
@@ -38,6 +40,14 @@ import {
   Switch,
 } from "../../sektar/kit/ui.js";
 import { createAccount, useSektarDrive } from "../../sektar/kit/data.js";
+import { useHubDrive } from "../../sektar/kit/integration-index.js";
+import {
+  ensureReactorConnection,
+  grantAction,
+  granterOf,
+  useRunnerFacts,
+  wantsStatement,
+} from "../../sektar/kit/reactor-grant.js";
 import {
   useSignInPlace,
   type SignInPlace,
@@ -57,12 +67,24 @@ export const STEPS = [
   "add",
   "add/connect",
   "add/how-much",
+  "add/grant",
   "add/name",
 ] as const;
 export type CreateStep = (typeof STEPS)[number];
 
-const CONFIGURE: readonly CreateStep[] = STEPS.slice(1);
+/** Without the step that lets Sektar write: only a new environment needs it. */
+const CONFIGURE: readonly CreateStep[] = STEPS.slice(1).filter(
+  (step) => step !== "add/grant",
+);
+const CONFIGURE_WITH_GRANT: readonly CreateStep[] = STEPS.slice(1);
 const TITLES = ["What to bring in", "Connect", "How much", "Name and create"];
+const TITLES_WITH_GRANT = [
+  "What to bring in",
+  "Connect",
+  "How much",
+  "Allow",
+  "Name and create",
+];
 
 /**
  * Where Add integration starts: the handoff notice first, unless the
@@ -102,8 +124,25 @@ export function CreateFlow({
   // In an environment whose switchboard finishes the sign-in itself
   const cloud = place === "cloud";
   const direct = runner || cloud;
+  const environmentWord = runner ? "computer" : "environment";
   const [drive] = useSelectedDrive();
   const sektarDrive = useSektarDrive();
+  const workflows = useHubDrive("workflows");
+  const renown = useRenown();
+  const { login } = useRenownAuth();
+  const { facts, refresh } = useRunnerFacts();
+  const granter = granterOf(renown);
+  // A new environment: nothing can write documents until someone allows it.
+  const grantStep = Boolean(facts) && !facts?.reactorConnectionId;
+  // Asked once per flow, so allowing does not take the step away under them.
+  const [granting, setGranting] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (facts !== undefined && granting === null) setGranting(grantStep);
+  }, [facts, grantStep, granting]);
+  const withGrant = granting === true;
+  const configure = withGrant ? CONFIGURE_WITH_GRANT : CONFIGURE;
+  const nameStep = configure.length - 1;
+  const [allowed, setAllowed] = useState(false);
   const [kind, setKind] = useState<IntegrationKind | null>(null);
   const [choices, setChoices] = useState<CreateChoices | null>(null);
   const [busy, setBusy] = useState(false);
@@ -113,16 +152,42 @@ export function CreateFlow({
   const [acknowledged, setAcknowledged] = useState(runner);
   const [finished, setFinished] = useState<string | null>(null);
 
-  const flow = direct ? CONFIGURE : STEPS;
-  const titles = direct ? TITLES : ["Before you start", ...TITLES];
+  const configureTitles = withGrant ? TITLES_WITH_GRANT : TITLES;
+  const flow = direct ? configure : ["add/before", ...configure];
+  const titles = direct
+    ? configureTitles
+    : ["Before you start", ...configureTitles];
   const base = direct ? 0 : 1;
   // A reload or a deep link past a step without its choice starts over.
-  const wanted = Math.max(0, CONFIGURE.indexOf(step));
+  const wanted = Math.max(0, configure.indexOf(step));
   const conf = choices ? wanted : kind ? Math.min(wanted, 1) : 0;
   const before = !cloud && (!acknowledged || step === "add/before");
   const at = before ? 0 : base + conf;
   const patch = (p: Partial<CreateChoices>) =>
     setChoices((c) => (c ? { ...c, ...p } : c));
+
+  const afterHowMuch: CreateStep = withGrant ? "add/grant" : "add/name";
+  const beforeName: CreateStep = withGrant ? "add/grant" : "add/how-much";
+
+  const allow = async () => {
+    if (!facts) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (facts.requiresPerson && !granter) {
+        login();
+        return;
+      }
+      await ensureReactorConnection(facts, workflows?.header.id);
+      setAllowed(true);
+      refresh();
+      go("add/name");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const pickKind = (k: IntegrationKind) => {
     if (k !== kind) setChoices(null);
@@ -165,7 +230,15 @@ export function CreateFlow({
         ready = { ...choices, accounts };
       }
       const node = await addDocument(drive.header.id, name, INTEGRATION_TYPE);
-      await dispatchActions(createActions(ready, now, generateId), node.id);
+      // One statement per integration, signed silently: the step above asked.
+      const granted =
+        granter && wantsStatement(facts)
+          ? [await grantAction(granter, facts, node.id)]
+          : [];
+      await dispatchActions(
+        [...createActions(ready, now, generateId), ...granted],
+        node.id,
+      );
       // Nothing to sign in to for a bank on a key this computer holds; in
       // the cloud flow the card's Sign in finishes it, here
       if (direct || choices.kind === "TRANSACTIONS") onDone();
@@ -335,7 +408,7 @@ export function CreateFlow({
         <BankAccounts choices={choices} patch={patch} />
         <Footer
           back={() => go("add/connect")}
-          next={() => go("add/name")}
+          next={() => go(afterHowMuch)}
           nextLabel="Continue"
           disabled={(choices.accounts ?? []).length === 0}
         />
@@ -454,17 +527,63 @@ export function CreateFlow({
         </fieldset>
         <Footer
           back={() => go("add/connect")}
-          next={() => go("add/name")}
+          next={() => go(afterHowMuch)}
           nextLabel="Continue"
         />
       </Panel>
     );
-  } else if (conf === 3 && choices) {
+  } else if (withGrant && conf === 3 && choices) {
+    body = (
+      <Panel
+        title="Let Sektar write to your documents"
+        lead="Workflows bring things in for you. They need your say-so once."
+        back={() => go("add/how-much")}
+      >
+        <div className="sk-intg-access">
+          <div className="sk-intg-access__option is-selected">
+            <ul className="sk-intg-access__list">
+              <li>
+                <Icon name="check" size={16} mono className="sk-intg-yes" />
+                Write what you set up here to your documents
+              </li>
+              <li>
+                <Icon name="check" size={16} mono className="sk-intg-yes" />
+                Keep it up to date while you are away
+              </li>
+              <li className="sk-text-muted">
+                <Icon name="close" size={16} mono className="sk-intg-no" />
+                Anything outside this {environmentWord}
+              </li>
+            </ul>
+          </div>
+        </div>
+        {error && (
+          <Alert tone="danger" title="Could not allow it">
+            {error}
+          </Alert>
+        )}
+        <Footer
+          back={() => go("add/how-much")}
+          next={() => void allow()}
+          nextLabel={
+            busy
+              ? "Allowing…"
+              : facts?.requiresPerson && !granter
+                ? "Sign in"
+                : allowed
+                  ? "Continue"
+                  : "Allow"
+          }
+          disabled={busy}
+        />
+      </Panel>
+    );
+  } else if (conf === nameStep && choices) {
     body = (
       <Panel
         title="Name it"
         lead="As it appears on the page."
-        back={() => go("add/how-much")}
+        back={() => go(beforeName)}
       >
         <Field label="Name">
           <Input
@@ -480,7 +599,7 @@ export function CreateFlow({
           </Alert>
         )}
         <Footer
-          back={() => go("add/how-much")}
+          back={() => go(beforeName)}
           next={() => void create()}
           nextLabel={busy ? "Creating…" : "Create"}
           disabled={busy || !drive}
