@@ -55,10 +55,14 @@ export default {
     "desktop-connect": {
       host: "connect",
       // serve the BUILT Connect; the loopback port doubles as a shell's
-      // readiness probe
+      // readiness probe. Connect's server proxies the switchboard's paths and
+      // serves its URLs as ${origin}, as on the cli and vetra hosts: what the
+      // browser calls on its own origin, such as the assistant's gateway,
+      // would otherwise get the app's HTML back.
       runner: {
         defaultVerb: "serve",
         port: config.studio?.port ?? 3000,
+        proxy: { target: server.origin },
       },
       // Attach every drive the server member serves as a remote, by the URL
       // it reports (key-sorted). The Workflows drive is among them; the
