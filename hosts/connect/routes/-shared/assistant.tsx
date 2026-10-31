@@ -27,6 +27,7 @@ import {
 } from "../../../../editors/sektar/kit/ui.js";
 import { useUserName } from "../../../../editors/sektar/kit/user-name.js";
 import { Pane } from "../../../../editors/sektar/kit/workspace.js";
+import { useAutoApprove } from "./auto-approve.js";
 import {
   useHeldChat,
   WithChatHolder,
@@ -84,8 +85,10 @@ export function HeldChat({
 }) {
   const userName = useUserName();
   const today = useToday();
+  const [autoApprove] = useAutoApprove();
   const chat = useReactorChat(getHostAiTools, {
     connection,
+    autoApprove,
     instructions: assistantInstructions(today, userName),
   });
 
@@ -124,8 +127,10 @@ export function HeldChat({
             <p>
               {userName && `Hi ${userName}. `}
               Ask about your invoices, mail, calendar, files or trips, or attach
-              a photo of a receipt. Anything that changes your data asks you
-              first.
+              a photo of a receipt.{" "}
+              {autoApprove
+                ? "Auto-approve is on, so changes to your data are made without asking."
+                : "Anything that changes your data asks you first."}
             </p>
           }
         />,
@@ -191,6 +196,7 @@ export function KeyCard({
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [autoApprove, setAutoApprove] = useAutoApprove();
 
   const showForm = !status.configured || replacing;
 
@@ -285,6 +291,21 @@ export function KeyCard({
             Reset key
           </Button>
         </div>
+      )}
+      {status.configured && (
+        <>
+          <label className="sk-check">
+            <input
+              type="checkbox"
+              checked={autoApprove}
+              onChange={(event) => setAutoApprove(event.target.checked)}
+            />
+            Auto-approve
+          </label>
+          <p className="sk-caption">
+            The assistant changes your data without asking you first.
+          </p>
+        </>
       )}
       {resetting && (
         <Modal
