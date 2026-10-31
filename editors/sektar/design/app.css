@@ -2936,6 +2936,7 @@ html { touch-action: manipulation; }
   gap: var(--sk-space-2);
 }
 .sk-assistant .ph-chat-approve,
+.sk-assistant .ph-chat-approve-all,
 .sk-assistant .ph-chat-reject {
   display: inline-flex;
   align-items: center;
