@@ -71,6 +71,17 @@ export function kindInfo(
   return KINDS.find((k) => k.kind === kind);
 }
 
+/** The hash that opens Add integration with this kind already chosen. */
+export function addHashFor(kind: IntegrationKind): string {
+  return `add/for/${kind}`;
+}
+
+/** The kind such a hash asks for, when it's one that can be added. */
+export function kindOfAddHash(hash: string | null): IntegrationKind | null {
+  const found = KINDS.find((k) => k.available && addHashFor(k.kind) === hash);
+  return found?.kind ?? null;
+}
+
 export type ProviderInfo = {
   id: string;
   kind: IntegrationKind;

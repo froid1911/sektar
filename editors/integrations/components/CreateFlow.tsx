@@ -108,11 +108,14 @@ export function firstStep(place: SignInPlace): CreateStep {
  */
 export function CreateFlow({
   step,
+  startKind,
   go,
   onDone,
   onCancel,
 }: {
   step: CreateStep;
+  /** Already chosen, so the flow opens past that question */
+  startKind?: IntegrationKind | null;
   go: (step: CreateStep) => void;
   onDone: () => void;
   onCancel: () => void;
@@ -143,7 +146,7 @@ export function CreateFlow({
   const configure = withGrant ? CONFIGURE_WITH_GRANT : CONFIGURE;
   const nameStep = configure.length - 1;
   const [allowed, setAllowed] = useState(false);
-  const [kind, setKind] = useState<IntegrationKind | null>(null);
+  const [kind, setKind] = useState<IntegrationKind | null>(startKind ?? null);
   const [choices, setChoices] = useState<CreateChoices | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -316,7 +319,7 @@ export function CreateFlow({
             variant="primary"
             onClick={() => {
               setAcknowledged(true);
-              go("add");
+              go(kind ? "add/connect" : "add");
             }}
           >
             Continue

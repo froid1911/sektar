@@ -482,6 +482,63 @@ test("settings reach the stack, and can't weaken sign-in", async () => {
   }
 });
 
+test("starting again right after being killed keeps the assistant", async () => {
+  await clearWindow();
+  const root = scratchRoot("restart");
+  writeSettings(root);
+  let app = await launch(root);
+  try {
+    await signInPage(app.page);
+    await createLocalKey(app.page);
+    await connectIsOpen(app.page);
+    await until(
+      () => logText().includes("Workflow runtime started"),
+      "the automations to start",
+    );
+    // Quitting from the tray stops the stack this hard too.
+    await app.stop();
+
+    app = await launch(root);
+    await signInPage(app.page);
+    await app.page.click("#as-local");
+    await app.page.fill("#password", PASSWORD);
+    await app.page.click("#unlock");
+    await connectIsOpen(app.page);
+    assert.doesNotMatch(logText(), /another live process/);
+
+    // An admin with no key yet is asked for one, and nobody has to refresh.
+    await app.page.waitForSelector(".sk-assistant__key", { timeout: 60_000 });
+    assert.doesNotMatch(
+      await app.page.textContent("body"),
+      /assistant is not available/,
+    );
+  } finally {
+    await app.stop();
+  }
+});
+
+test("the packaged app loads Sektar's own pieces and document models", { skip: !installed }, async () => {
+  await clearWindow();
+  const root = scratchRoot("own-package");
+  writeSettings(root);
+  const app = await launch(root);
+  try {
+    await signInPage(app.page);
+    await createLocalKey(app.page);
+    await connectIsOpen(app.page);
+    await until(
+      () => logText().includes("Workflow runtime started"),
+      "the automations to start",
+    );
+    assert.doesNotMatch(logText(), /has no version in/);
+    assert.doesNotMatch(logText(), /no importable document-models entry/);
+    assert.doesNotMatch(logText(), /is not available; runs/);
+    assert.match(logText(), /Loaded d+ piece(s) from package .*stack: .*distyra/);
+  } finally {
+    await app.stop();
+  }
+});
+
 test("automations can be left off, for when one stops Sektar from starting", async () => {
   await clearWindow();
   let root = scratchRoot("automations-on");

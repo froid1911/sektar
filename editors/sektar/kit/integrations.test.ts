@@ -22,6 +22,9 @@ import {
   providersFor,
   rangeLabel,
   type CreateChoices,
+  addHashFor,
+  KINDS,
+  kindOfAddHash,
 } from "./integrations.js";
 
 // 28 Oct 2026, mid-morning
@@ -66,6 +69,23 @@ describe("what the create flow offers", () => {
     expect(c.live).toBe(true);
     expect(c.every).toEqual({ value: 5, unit: "MINUTES" });
     expect(c.history).toEqual({ kind: "since", date: "2025-01-01" });
+  });
+});
+
+describe("a link that says what to bring in", () => {
+  it("opens at the kind it names, for each kind that can be added", () => {
+    for (const { kind } of KINDS.filter((k) => k.available)) {
+      expect(kindOfAddHash(addHashFor(kind))).toBe(kind);
+    }
+  });
+
+  it("is ignored when it names nothing that can be added", () => {
+    expect(kindOfAddHash("add")).toBeNull();
+    expect(kindOfAddHash("add/for/FAX")).toBeNull();
+    expect(kindOfAddHash(null)).toBeNull();
+    for (const { kind } of KINDS.filter((k) => !k.available)) {
+      expect(kindOfAddHash(addHashFor(kind))).toBeNull();
+    }
   });
 });
 

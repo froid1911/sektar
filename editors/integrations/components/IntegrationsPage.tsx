@@ -7,7 +7,7 @@ import {
   useIntegrationItems,
   useQueueProgress,
 } from "../../sektar/kit/integration-index.js";
-import { KINDS } from "../../sektar/kit/integrations.js";
+import { KINDS, kindOfAddHash } from "../../sektar/kit/integrations.js";
 import {
   PullHeader,
   pullResult,
@@ -66,7 +66,9 @@ export function IntegrationsPage() {
   );
   const connections = useConnectionRows(connectionIds);
   const triggers = useTriggerStates();
-  const step = STEPS.find((s) => s === hash);
+  // From a link that already says what to bring in, such as the welcome page's
+  const startKind = kindOfAddHash(hash);
+  const step = startKind ? "add/connect" : STEPS.find((s) => s === hash);
   // An open integration: #i/<document id>
   const openId = hash?.startsWith("i/") ? hash.slice(2) : null;
   const opened = openId ? docs.find((d) => d.id === openId) : undefined;
@@ -130,6 +132,7 @@ export function IntegrationsPage() {
           </nav>
           <CreateFlow
             step={step}
+            startKind={startKind}
             go={(next: CreateStep) => setHash(next)}
             onDone={() => setHash(null, { replace: true })}
             onCancel={() => setHash(null)}
