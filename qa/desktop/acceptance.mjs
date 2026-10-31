@@ -267,6 +267,7 @@ test("a local key: created, unlocked, and its identity is the admin", async () =
     assert.doesNotMatch(logText(), /AI gateway is not mounted/);
     assert.match(logText(), new RegExp(`ADMINS=${wallet.address.toLowerCase()}`));
     assert.match(logText(), /RENOWN_SOURCE=kept/);
+    if (installed) assert.match(logText(), /NODE_ENV=production/);
 
     // The window keeps no documents of its own.
     const stores = await app.page.evaluate(async () =>
