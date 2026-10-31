@@ -5,14 +5,14 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsToAny } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import { CALENDAR_EVENT_DOCUMENT_TYPE, CalendarIndex } from "./processor.js";
 
 export const calendarIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
     // Only the drives it indexes: Calendar.
-    if (!(await bindsToAny(module.read, driveHeader, ["calendar"]))) return [];
+    if (!bindsToAny(driveHeader, ["calendar"])) return [];
     // One index per drive, so two drives' calendars stay apart.
     const namespace = CalendarIndex.getNamespace(driveHeader.id);
     const store =

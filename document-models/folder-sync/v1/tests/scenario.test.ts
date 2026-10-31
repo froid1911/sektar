@@ -37,7 +37,7 @@ function rejects(doc: FolderSyncDocument, action: Action, message: RegExp) {
 function q3() {
   return apply(
     utils.createDocument(),
-    setTarget({ driveId: "files", folderId: "q3-folder", folderPath: "kwartaalaangiftes/2026-Q3" }),
+    setTarget({ driveId: "files-drive", folderId: "q3-folder", folderPath: "kwartaalaangiftes/2026-Q3" }),
     setLocalPath({ localPath: "  D:\\Dropbox (Personal)\\KSDC\\kwartaalaangiftes\\2026-Q3  " }),
   );
 }
@@ -70,13 +70,13 @@ describe("a folder sync, from mapping to runs", () => {
   it("maps a drive folder, or the drive's root, onto an absolute local path", () => {
     let doc = q3();
     expect(doc.state.global).toMatchObject({
-      driveId: "files",
+      driveId: "files-drive",
       folderId: "q3-folder",
       folderPath: "kwartaalaangiftes/2026-Q3",
       localPath: "D:\\Dropbox (Personal)\\KSDC\\kwartaalaangiftes\\2026-Q3",
     });
 
-    doc = apply(doc, setTarget({ driveId: "files" }));
+    doc = apply(doc, setTarget({ driveId: "files-drive" }));
     expect(doc.state.global.folderId).toBeNull();
     expect(doc.state.global.folderPath).toBeNull();
 
@@ -124,7 +124,7 @@ describe("a folder sync, from mapping to runs", () => {
     const blank = utils.createDocument();
     rejects(blank, requestSync({ id: "r0", requestedAt: AT }), /drive folder and the local path/);
     rejects(
-      apply(blank, setTarget({ driveId: "files" })),
+      apply(blank, setTarget({ driveId: "files-drive" })),
       requestSync({ id: "r0", requestedAt: AT }),
       /drive folder and the local path/,
     );

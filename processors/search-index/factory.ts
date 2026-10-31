@@ -5,14 +5,14 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsToAny } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import { SearchIndex } from "./processor.js";
 
 export const searchIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
     // Only the drives it indexes: the business drive.
-    if (!(await bindsToAny(module.read, driveHeader, ["sektar"]))) return [];
+    if (!bindsToAny(driveHeader, ["sektar"])) return [];
     // Create a namespace for the processor and the provided drive id
     const namespace = SearchIndex.getNamespace(driveHeader.id);
 

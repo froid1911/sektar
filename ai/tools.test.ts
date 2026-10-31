@@ -600,17 +600,6 @@ describe("finding the drive and the switchboard", () => {
     expect(calls[0].variables.d).toBe("id-of-sektar");
   });
 
-  it("takes the converted drive over the legacy one under the slug", async () => {
-    const pinned = "5v9yD8F5MatCgOugIgNg47Qzg-JP5OEx618hVCqIqms";
-    installStore({}, [
-      { header: { id: "legacy", slug: "sektar" } },
-      { header: { id: pinned, slug: pinned } },
-    ]);
-    const calls = serve(empty);
-    await call("sektarFindInvoices");
-    expect(calls[0].variables.d).toBe(pinned);
-  });
-
   it("takes a synced drive's own switchboard", async () => {
     const { DriveCollectionId } = await import("@powerhousedao/reactor-browser");
     installStore({
@@ -996,15 +985,6 @@ describe("sektarFindFiles", () => {
     });
   });
 
-  it("names the drive, the pinned one over the legacy", async () => {
-    const pinned = "wpoqSWDrc0GNFL_BJd15L9R5rtvezJsH7mZFqGYSVA0";
-    installStore({}, [
-      { header: { id: "legacy", slug: "files" } },
-      { header: { id: pinned, slug: pinned } },
-    ]);
-    serve(root);
-    expect(await call("sektarFindFiles")).toMatchObject({ driveId: pinned });
-  });
 });
 
 describe("sektarFindTrips", () => {

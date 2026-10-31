@@ -22,14 +22,8 @@ export default {
       // its own workflows plugin — one link, declared on both ends.
       {
         module: "@powerhousedao/switchboard/plugins/workflows",
-        // The id is pinned: without one the plugin derives it from the
-        // project path (workflows-<hash>) and announces that id, while the
-        // drive that already holds the workflows was created as
-        // workflows-36baa6c1 under an earlier hash. Seeding keys on the slug
-        // and would find it, but Connect attaches the announced id and got a
-        // 404 for a drive that does not exist.
         config: {
-          drive: { slug: "workflows", name: "Workflows", id: "workflows-36baa6c1" },
+          drive: { slug: "workflows", name: "Workflows", projectHash: false },
         },
       },
       // The assistant's gateway: holds the OpenRouter key as a host secret and
@@ -63,18 +57,15 @@ export default {
     drives: [
       {
         slug: "sektar",
+        documentType: "powerhouse/reactor-drive",
         name: "Sektar",
         preferredEditor: "sektar",
         icon: "./icons/sektar_symbol_64x64.png",
       },
       // Mail: captured emails (sektar/email), opened by the Mail workspace.
-      // A fresh store makes it under the "mail" slug. The store where it was
-      // converted to a reactor-drive (2026-10-26) holds it under a pinned id
-      // whose slug is the id itself: the vetra host pins that (COMPAT there),
-      // and the reconciler and the Mail link look the drive up by that id
-      // first, then by this slug.
       {
         slug: "mail",
+        documentType: "powerhouse/reactor-drive",
         name: "Mail",
         preferredEditor: "email-workspace",
         icon: "./icons/sektar_symbol_64x64.png",
@@ -84,6 +75,7 @@ export default {
       // For Every trigger, which reach the queue through this switchboard.
       {
         slug: "backfills",
+        documentType: "powerhouse/reactor-drive",
         name: "Backfills",
         preferredEditor: "backfills",
         icon: "./icons/sektar_symbol_64x64.png",
@@ -93,6 +85,7 @@ export default {
       // sync) lives here; the reconciler builds the workflows behind it.
       {
         slug: "integrations",
+        documentType: "powerhouse/reactor-drive",
         name: "Integrations",
         preferredEditor: "integrations",
         icon: "./icons/sektar_symbol_64x64.png",
@@ -102,6 +95,7 @@ export default {
       // A drive seeded before the app existed is bound by Connect's shell.
       {
         slug: "calendar",
+        documentType: "powerhouse/reactor-drive",
         name: "Calendar",
         preferredEditor: "calendar",
         icon: "./icons/sektar_symbol_64x64.png",
@@ -109,6 +103,7 @@ export default {
       // Files: any document or file, opened by the Files drive app.
       {
         slug: "files",
+        documentType: "powerhouse/reactor-drive",
         name: "Files",
         preferredEditor: "files",
         icon: "./icons/sektar_symbol_64x64.png",
@@ -116,6 +111,7 @@ export default {
       // Trips: business trips (sektar/trip), opened by the Trips drive app.
       {
         slug: "trips",
+        documentType: "powerhouse/reactor-drive",
         name: "Trips",
         preferredEditor: "trips",
         icon: "./icons/sektar_symbol_64x64.png",

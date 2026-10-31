@@ -4,12 +4,11 @@
 import { useDrives } from "@powerhousedao/reactor-browser";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { findDrive } from "../../../../processors/drive-ids/index.js";
+import { findDrive } from "../../../../processors/drives/index.js";
 
 export function OpenDrive({ slug, label }: { slug: string; label: string }) {
   const drives = useDrives();
   const navigate = useNavigate();
-  // The converted drive where this store has it, else the one under the slug
   const drive = findDrive(drives, slug);
   useEffect(() => {
     if (!drive) return;

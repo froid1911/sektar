@@ -1,7 +1,7 @@
 // Seeing what a File holds: its source of truth (a stored file, or another
 // document) and each of its renditions. Shared by the File editor's preview
 // pane and the Files drive app's preview pane.
-import { findDrive } from "../../../processors/drive-ids/index.js";
+import { findDrive } from "../../../processors/drives/index.js";
 import {
   makeNodeSlug,
   openTarget,

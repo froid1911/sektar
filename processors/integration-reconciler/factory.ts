@@ -5,7 +5,7 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsTo } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import {
   findReactorConnection,
   INTEGRATION_TYPE,
@@ -13,8 +13,6 @@ import {
 } from "./processor.js";
 import { loadRunnerKey } from "./runner-key.js";
 
-/** The drive app whose drive holds the integrations. */
-const INTEGRATIONS_APP = "integrations";
 /** The drive the host files declare for them. */
 const INTEGRATIONS_DRIVE = "integrations";
 
@@ -47,9 +45,7 @@ export const integrationReconcilerFactoryBuilder: ProcessorFactoryBuilder = (
 ) => {
   serveRunnerFacts(module);
   return async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
-    // One reconciler per store: on the converted Integrations drive where
-    // there is one, never also on the legacy drive holding the same documents.
-    if (!(await bindsTo(module.read, driveHeader, INTEGRATIONS_DRIVE, INTEGRATIONS_APP))) {
+    if (!bindsToAny(driveHeader, [INTEGRATIONS_DRIVE])) {
       return [];
     }
     const filter: ProcessorFilter = {

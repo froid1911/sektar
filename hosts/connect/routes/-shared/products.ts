@@ -5,7 +5,7 @@ import iconMintLight from "../../../../editors/sektar/design/app-icons/sektar-ap
 import iconSageDark from "../../../../editors/sektar/design/app-icons/sektar-app-icon-sage-dark.svg";
 import iconSageLight from "../../../../editors/sektar/design/app-icons/sektar-app-icon-sage-light.svg";
 import type { IconName } from "../../../../editors/sektar/kit/ui.js";
-import { findDrive, pinnedDriveId } from "../../../../processors/drive-ids/index.js";
+import { findDrive } from "../../../../processors/drives/index.js";
 
 // The Sektar products this app ships, in the design system's order. One
 // account, one shell: the lockup in the sidebar switches between them and the
@@ -16,12 +16,6 @@ export type NavItem = {
   to: string;
   label: string;
   icon: IconName;
-  /**
-   * For a drive item: the id of the drive converted to a reactor-drive in
-   * stores that hold one (processors/drive-ids/drive-ids.json; `to` names the slug). The
-   * item opens that drive while it exists.
-   */
-  pinnedId?: string;
   /**
    * For a drive the item opens by slug: the drive app it is bound to. A drive
    * created before its app existed has none; the shell binds it (bindDriveApps).
@@ -68,18 +62,15 @@ export const PRODUCTS: readonly Product[] = [
     icon: { light: iconSageLight, dark: iconSageDark },
     nav: [
       { to: "/productivity", label: "Welcome", icon: "dashboard" },
-      // The Mail drive (hosts/*: drive app email-workspace): the converted
-      // drive by its id where it exists, else the "mail" slug.
+      // The Mail drive (hosts/*: slug "mail", drive app email-workspace)
       {
         to: "/d/mail",
-        pinnedId: pinnedDriveId("mail"),
         label: "Mail",
         icon: "mail",
       },
       // The Calendar drive (hosts/switchboard: slug "calendar", drive app calendar)
       {
         to: "/d/calendar",
-        pinnedId: pinnedDriveId("calendar"),
         label: "Calendar",
         icon: "calendar",
         app: "calendar",
@@ -87,7 +78,7 @@ export const PRODUCTS: readonly Product[] = [
       // Everyone the business deals with
       { to: "/contacts", label: "Contacts", icon: "customers" },
       // The Files drive (hosts/*: slug "files", drive app files)
-      { to: "/d/files", pinnedId: pinnedDriveId("files"), label: "Files", icon: "folder" },
+      { to: "/d/files", label: "Files", icon: "folder" },
     ],
     // The Workflows drive: Settings links to it (settings/workflows.tsx)
     drive: {
@@ -100,7 +91,6 @@ export const PRODUCTS: readonly Product[] = [
       // The Integrations drive (hosts/switchboard: slug "integrations", drive app integrations)
       {
         to: "/d/integrations",
-        pinnedId: pinnedDriveId("integrations"),
         label: "Integrations",
         icon: "sync",
       },
@@ -110,7 +100,6 @@ export const PRODUCTS: readonly Product[] = [
       // Settings links to it (settings/backfills.tsx)
       {
         to: "/d/backfills",
-        pinnedId: pinnedDriveId("backfills"),
         label: "Backfills",
         icon: "download",
       },
@@ -183,45 +172,13 @@ export function driveFor<D extends DriveLike>(
   drives: readonly D[] | undefined,
   product: Product,
 ): { drive: D; param: string } | undefined {
-  const { slug, editor } = product.drive;
-  // The converted drive where this store has it: opened by its id
-  const pinned = pinnedDriveId(slug);
-  const converted = pinned ? findDrive(drives, slug) : undefined;
-  if (converted && converted.header.id === pinned) {
-    return { drive: converted, param: converted.header.id };
-  }
-  const candidates = (drives ?? []).filter(
-    (d) => d.header.slug === slug || d.header.id === slug,
-  );
-  if (candidates.length === 0) return undefined;
-  const drive =
-    candidates.find((d) => d.header.meta?.preferredEditor === editor) ??
-    candidates[0];
-  const param =
-    candidates.length > 1
-      ? drive.header.id
-      : drive.header.slug || drive.header.id;
-  return { drive, param };
+  const drive = findDrive(drives, product.drive.slug);
+  return drive && { drive, param: drive.header.slug };
 }
 
-/** Every address a nav item's page can have: its own, and its pinned drive's. */
-export function navTargets(item: NavItem): string[] {
-  return item.pinnedId ? [item.to, `/d/${item.pinnedId}`] : [item.to];
-}
-
-/**
- * Whether `pathname` is the page a nav item opens. A drive item names the
- * drive by id (`/d/<id>`), but Connect shows a drive whose slug differs from
- * its id as `/d/<slug>-<id>` (Mail: `/d/mail-HRsI…`), so both forms count.
- */
+/** Whether `pathname` is the page a nav item opens. */
 export function navMatches(pathname: string, to: string): boolean {
-  if (!to.startsWith("/d/")) {
-    return pathname === to || pathname.startsWith(`${to}/`);
-  }
-  if (!pathname.startsWith("/d/")) return false;
-  const want = to.slice(3).split("/")[0];
-  const have = pathname.slice(3).split("/")[0];
-  return have === want || have.endsWith(`-${want}`);
+  return pathname === to || pathname.startsWith(`${to}/`);
 }
 
 /**
@@ -248,10 +205,7 @@ export function productFor(
         ...(p.beforeDrive ?? []),
         ...(p.afterDrive ?? []),
         ...(p.linked ?? []),
-      ].some(
-        // a drive item's page is also its pinned drive's address
-        (n) => navTargets(n).some((to) => navMatches(pathname, to)),
-      ) ||
+      ].some((n) => navMatches(pathname, n.to)) ||
       isProductDrive(pathname, p),
   );
   return (

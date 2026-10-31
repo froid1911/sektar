@@ -34,7 +34,7 @@ import {
   type ConnectionFacts,
   type ReconcileIO,
 } from "./reconcile.js";
-import { resolveDriveId } from "processors/drive-ids";
+import { resolveDriveId } from "processors/drives";
 import {
   noteRecorded,
   withRecorded,
@@ -370,7 +370,6 @@ export class IntegrationReconciler implements IProcessor {
         await dispatch.deleteDocument(integrationId);
       },
       newId: () => generateId(),
-      // The converted drive where it exists, else the one made under the slug
       drive: (slug) => resolveDriveId(read, slug),
       findReactorConnection: () => findReactorConnection(read),
       readWorkflow: async (id) => {

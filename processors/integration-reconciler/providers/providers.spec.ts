@@ -16,9 +16,10 @@ import {
 } from "../backfill-workflow.js";
 import { workflowDrift, type WorkflowFacts } from "../workflow-spec.js";
 import { distyra } from "./distyra.js";
-import { gmail, MAIL_DRIVE_ID } from "./gmail.js";
+import { gmail } from "./gmail.js";
 
 const newId = () => "id-new";
+const MAIL_DRIVE_ID = "the-mail-drive";
 
 type Action = Parameters<typeof reducer>[1];
 const state = (...list: Action[]) =>

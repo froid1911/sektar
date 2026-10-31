@@ -5,14 +5,14 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsToAny } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import { INTEGRATION_INDEX_TYPES, IntegrationIndex } from "./processor.js";
 
 export const integrationIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
     // Only the drives it indexes: Integrations, Backfills (queues) and Workflows (connections).
-    if (!(await bindsToAny(module.read, driveHeader, ["integrations", "backfills", "workflows"]))) return [];
+    if (!bindsToAny(driveHeader, ["integrations", "backfills", "workflows"])) return [];
     // One index per drive: the integrations, backfills and workflows drives
     // each fill the table of the type they hold.
     const namespace = IntegrationIndex.getNamespace(driveHeader.id);

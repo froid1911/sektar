@@ -28,13 +28,12 @@ import {
   Skeleton,
   Sprite,
 } from "../../../editors/sektar/kit/ui.js";
-import { findDrive } from "../../../processors/drive-ids/index.js";
+import { findDrive } from "../../../processors/drives/index.js";
 import { AssistantChatHolder } from "./-shared/assistant-chat.js";
 import { ProductSwitch } from "./-shared/product-switch.js";
 import {
   driveFor,
   navMatches,
-  navTargets,
   PRODUCTS,
   productFor,
   rememberProduct,
@@ -103,7 +102,7 @@ function pageTitle(pathname: string, product: Product) {
     ...(product.beforeDrive ?? []),
     ...(product.afterDrive ?? []),
     ...(product.linked ?? []),
-  ].find((n) => navTargets(n).some((to) => navMatches(pathname, to)));
+  ].find((n) => navMatches(pathname, n.to));
   if (nav) return nav.label;
   if (pathname.startsWith("/d/")) return product.drive.label;
   if (pathname.startsWith("/settings")) return "Settings";
@@ -346,17 +345,11 @@ function NavLink({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const drives = useDrives();
-  const active = navTargets(item).some((to) => navMatches(pathname, to));
-  // The pinned drive where this store has it, else the item's own address
-  const to =
-    item.pinnedId && drives?.some((d) => d.header.id === item.pinnedId)
-      ? `/d/${item.pinnedId}`
-      : item.to;
+  const active = navMatches(pathname, item.to);
   return (
     <li>
       <Link
-        to={to}
+        to={item.to}
         className={active ? "sk-nav__item is-active" : "sk-nav__item"}
         aria-current={active ? "page" : undefined}
         onClick={onNavigate}

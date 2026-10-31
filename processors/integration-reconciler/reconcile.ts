@@ -107,7 +107,7 @@ export interface ReconcileIO {
   newId(): string;
   /** The switchboard's own reactor connection, for steps that write documents */
   findReactorConnection(): Promise<string | null>;
-  /** A drive's id by slug: the converted drive where pinned (processors/drive-ids), else the one under the slug; null while neither is there */
+  /** The id of the drive under a slug; null while it has none */
   drive(slug: string): Promise<string | null>;
   /** Null when the workflow document is gone */
   readWorkflow(id: string): Promise<WorkflowFacts | null>;

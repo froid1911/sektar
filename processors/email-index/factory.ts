@@ -5,14 +5,14 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsToAny } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import { EMAIL_DOCUMENT_TYPE, EmailIndex } from "./processor.js";
 
 export const emailIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
     // Only the drives it indexes: Mail.
-    if (!(await bindsToAny(module.read, driveHeader, ["mail"]))) return [];
+    if (!bindsToAny(driveHeader, ["mail"])) return [];
     // One index per drive: a mailbox is listed within its drive, and the
     // namespace keeps two drives' mail apart.
     const namespace = EmailIndex.getNamespace(driveHeader.id);
