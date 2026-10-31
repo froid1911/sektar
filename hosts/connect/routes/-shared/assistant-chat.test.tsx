@@ -460,6 +460,7 @@ describe("who gets the chat", () => {
     gateway: undefined,
     connection: undefined,
     setKey: () => Promise.resolve(),
+    setDemoKey: () => Promise.resolve(),
     resetKey: () => Promise.resolve(),
     ...over,
   });

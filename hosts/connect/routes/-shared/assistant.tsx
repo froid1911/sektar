@@ -267,6 +267,11 @@ export function KeyCard({
             >
               {busy ? "Testing…" : "Save and test"}
             </Button>
+            {status.demoKeyAvailable && (
+              <Button disabled={busy} onClick={() => void run(gateway.setDemoKey)}>
+                Use the demo key
+              </Button>
+            )}
             {replacing && (
               <Button
                 variant="ghost"
