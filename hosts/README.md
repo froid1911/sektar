@@ -41,6 +41,26 @@ server), `vetra` (compound: both, dev mode — what `ph vetra` runs),
 The runners come from the linked monorepo checkout (`../powerhouse`, or
 `$POWERHOUSE_DIR`), built — see README.md, "Local monorepo link".
 
+### Sign-in on the `desktop` host
+
+`desktop` enforces Renown sign-in as `cli` does, through `config.switchboard`
+on its server member rather than env, since nobody edits an env file on a
+person's own computer (`docs/adr/0008-delegated-signers.md` in the monorepo):
+
+- The first person to sign in becomes the owner, recorded in
+  `${userData}/.ph/.owner.json`. Delete that file to give the computer to
+  someone else. A set `ADMINS` wins over it.
+- The server binds `127.0.0.1`, which is what makes that safe.
+- Verified credentials stay in `${userData}/.ph/.credentials.json`, so once
+  signed in it works with Renown unreachable. A revocation lands the next time
+  it is online.
+- `${userData}/.ph` holds three different things: the host's key
+  (`.keypair.json`), this environment's runner key (`.runner-keypair.json`) and
+  the two files above. The person's own key is in the webview's IndexedDB.
+
+Signing in from the app's one window needs `window.phDesktop.openExternal` from
+the shell. Without it Connect keeps Renown's redirect.
+
 ### Reactor-client topologies (what runs the reactor, and where)
 
 The `reactor.backends` of a Connect host select which of four clients it

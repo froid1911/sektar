@@ -1,36 +1,36 @@
 export type ErrorCode =
-  | "NotInitializedError"
-  | "DuplicateBackfillIdError"
-  | "InvalidRangeError"
-  | "UnknownBackfillError";
+  | "NOT_INITIALIZED"
+  | "DUPLICATE_BACKFILL_ID"
+  | "INVALID_RANGE"
+  | "UNKNOWN_BACKFILL";
 
 export interface ReducerError {
   errorCode: ErrorCode;
 }
 
 export class NotInitializedError extends Error implements ReducerError {
-  errorCode = "NotInitializedError" as ErrorCode;
+  errorCode = "NOT_INITIALIZED" as ErrorCode;
   constructor(message = "NotInitializedError") {
     super(message);
   }
 }
 
 export class DuplicateBackfillIdError extends Error implements ReducerError {
-  errorCode = "DuplicateBackfillIdError" as ErrorCode;
+  errorCode = "DUPLICATE_BACKFILL_ID" as ErrorCode;
   constructor(message = "DuplicateBackfillIdError") {
     super(message);
   }
 }
 
 export class InvalidRangeError extends Error implements ReducerError {
-  errorCode = "InvalidRangeError" as ErrorCode;
+  errorCode = "INVALID_RANGE" as ErrorCode;
   constructor(message = "InvalidRangeError") {
     super(message);
   }
 }
 
 export class UnknownBackfillError extends Error implements ReducerError {
-  errorCode = "UnknownBackfillError" as ErrorCode;
+  errorCode = "UNKNOWN_BACKFILL" as ErrorCode;
   constructor(message = "UnknownBackfillError") {
     super(message);
   }

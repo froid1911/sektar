@@ -104,6 +104,7 @@
     "@powerhousedao/switchboard": "link:../powerhouse/apps/switchboard",
     "@powerhousedao/vetra-studio": "link:../powerhouse/packages/vetra-studio",
     "@powerhousedao/workflow": "link:../powerhouse/packages/workflow",
+    "@renown/sdk": "link:../powerhouse/packages/renown",
     "@tailwindcss/cli": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "^1.170.41",
@@ -133,6 +134,7 @@
   "peerDependencies": {
     "@powerhousedao/reactor-browser": "*",
     "@powerhousedao/workflow": "*",
+    "@renown/sdk": "*",
     "document-model": "*",
     "graphql": "^16",
     "graphql-tag": "^2",

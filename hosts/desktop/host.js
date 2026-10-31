@@ -55,10 +55,14 @@ export default {
     "desktop-connect": {
       host: "connect",
       // serve the BUILT Connect; the loopback port doubles as a shell's
-      // readiness probe
+      // readiness probe. Connect's server proxies the switchboard's paths and
+      // serves its URLs as ${origin}, as on the cli and vetra hosts: what the
+      // browser calls on its own origin, such as the assistant's gateway,
+      // would otherwise get the app's HTML back.
       runner: {
         defaultVerb: "serve",
         port: config.studio?.port ?? 3000,
+        proxy: { target: server.origin },
       },
       // Attach every drive the server member serves as a remote, by the URL
       // it reports (key-sorted). The Workflows drive is among them; the
@@ -81,6 +85,24 @@ export default {
       host: "switchboard",
       // (runner key-merges over the switchboard host's own: its plugins
       // are inherited.)
+      //
+      // Sign-in is enforced as on the cloud host, which sets the same through
+      // env (hosts/cli/cli.env.example). A person's own computer has nobody to
+      // write ADMINS, so the first person to sign in becomes the owner, which
+      // is safe only because this host answers on loopback alone. Credentials
+      // are kept, so once signed in it works with no network (ADR 0008 §11).
+      config: {
+        switchboard: {
+          server: { host: "127.0.0.1" },
+          auth: {
+            enabled: true,
+            requireAuthenticatedCaller: true,
+            resolveIdentity: true,
+            ownerClaim: true,
+            offlineCredentials: true,
+          },
+        },
+      },
       reactor: {
         protocol: switchboard.reactor.protocol,
         backends: {

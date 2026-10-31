@@ -60,6 +60,7 @@ export const initialGlobalState: IntegrationGlobalState = {
   checkRequest: null,
   fixes: [],
   runner: null,
+  grant: null,
 };
 export const initialLocalState: IntegrationLocalState = {};
 

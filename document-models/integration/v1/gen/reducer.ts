@@ -1,8 +1,34 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import type { Reducer, StateReducer } from "document-model";
 import { createReducer, isDocumentAction } from "document-model";
 import type { IntegrationPHState } from "document-models/integration/v1";
+import type {
+  AddDateRangeBackfillAction,
+  AttachBackfillAction,
+  RemoveBackfillAction,
+  SetBackfillEnabledAction,
+} from "./backfill/actions.js";
+import type { ArchiveAction } from "./lifecycle/actions.js";
+import type {
+  SetLiveEnabledAction,
+  SetLiveIntervalAction,
+} from "./live/actions.js";
+import type {
+  RecordBackfillDocumentAction,
+  RecordCheckAction,
+  RecordResourcesAction,
+  RecordRunnerAction,
+  RequestCheckAction,
+} from "./reconciler/actions.js";
+import type {
+  ClearGrantAction,
+  InitializeAction,
+  SetAccessAction,
+  SetCalendarSourceAction,
+  SetConnectionAction,
+  SetEmailSourceAction,
+  SetGrantAction,
+  SetTransactionsSourceAction,
+} from "./setup/actions.js";
 
 import { integrationBackfillOperations } from "../src/reducers/backfill.js";
 import { integrationLifecycleOperations } from "../src/reducers/lifecycle.js";
@@ -14,6 +40,7 @@ import {
   AddDateRangeBackfillInputSchema,
   ArchiveInputSchema,
   AttachBackfillInputSchema,
+  ClearGrantInputSchema,
   InitializeInputSchema,
   RecordBackfillDocumentInputSchema,
   RecordCheckInputSchema,
@@ -26,6 +53,7 @@ import {
   SetCalendarSourceInputSchema,
   SetConnectionInputSchema,
   SetEmailSourceInputSchema,
+  SetGrantInputSchema,
   SetLiveEnabledInputSchema,
   SetLiveIntervalInputSchema,
   SetTransactionsSourceInputSchema,
@@ -55,8 +83,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(InitializeInputSchema).parse(action.input);
 
       integrationSetupOperations.initializeOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as InitializeAction,
         dispatch,
       );
 
@@ -67,8 +95,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetAccessInputSchema).parse(action.input);
 
       integrationSetupOperations.setAccessOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetAccessAction,
         dispatch,
       );
 
@@ -79,8 +107,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetConnectionInputSchema).parse(action.input);
 
       integrationSetupOperations.setConnectionOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetConnectionAction,
         dispatch,
       );
 
@@ -91,8 +119,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetCalendarSourceInputSchema).parse(action.input);
 
       integrationSetupOperations.setCalendarSourceOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetCalendarSourceAction,
         dispatch,
       );
 
@@ -103,8 +131,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetEmailSourceInputSchema).parse(action.input);
 
       integrationSetupOperations.setEmailSourceOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetEmailSourceAction,
         dispatch,
       );
 
@@ -115,8 +143,32 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetTransactionsSourceInputSchema).parse(action.input);
 
       integrationSetupOperations.setTransactionsSourceOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetTransactionsSourceAction,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "SET_GRANT": {
+      memoizedSchema(SetGrantInputSchema).parse(action.input);
+
+      integrationSetupOperations.setGrantOperation(
+        state.global,
+        action as SetGrantAction,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "CLEAR_GRANT": {
+      memoizedSchema(ClearGrantInputSchema).parse(action.input);
+
+      integrationSetupOperations.clearGrantOperation(
+        state.global,
+        action as ClearGrantAction,
         dispatch,
       );
 
@@ -127,8 +179,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetLiveEnabledInputSchema).parse(action.input);
 
       integrationLiveOperations.setLiveEnabledOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetLiveEnabledAction,
         dispatch,
       );
 
@@ -139,8 +191,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetLiveIntervalInputSchema).parse(action.input);
 
       integrationLiveOperations.setLiveIntervalOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetLiveIntervalAction,
         dispatch,
       );
 
@@ -151,8 +203,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetBackfillEnabledInputSchema).parse(action.input);
 
       integrationBackfillOperations.setBackfillEnabledOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetBackfillEnabledAction,
         dispatch,
       );
 
@@ -163,8 +215,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(AddDateRangeBackfillInputSchema).parse(action.input);
 
       integrationBackfillOperations.addDateRangeBackfillOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as AddDateRangeBackfillAction,
         dispatch,
       );
 
@@ -175,8 +227,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(AttachBackfillInputSchema).parse(action.input);
 
       integrationBackfillOperations.attachBackfillOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as AttachBackfillAction,
         dispatch,
       );
 
@@ -187,8 +239,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(RemoveBackfillInputSchema).parse(action.input);
 
       integrationBackfillOperations.removeBackfillOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as RemoveBackfillAction,
         dispatch,
       );
 
@@ -199,8 +251,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(RequestCheckInputSchema).parse(action.input);
 
       integrationReconcilerOperations.requestCheckOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as RequestCheckAction,
         dispatch,
       );
 
@@ -211,8 +263,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(RecordRunnerInputSchema).parse(action.input);
 
       integrationReconcilerOperations.recordRunnerOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as RecordRunnerAction,
         dispatch,
       );
 
@@ -223,8 +275,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(RecordResourcesInputSchema).parse(action.input);
 
       integrationReconcilerOperations.recordResourcesOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as RecordResourcesAction,
         dispatch,
       );
 
@@ -235,8 +287,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(RecordBackfillDocumentInputSchema).parse(action.input);
 
       integrationReconcilerOperations.recordBackfillDocumentOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as RecordBackfillDocumentAction,
         dispatch,
       );
 
@@ -247,8 +299,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(RecordCheckInputSchema).parse(action.input);
 
       integrationReconcilerOperations.recordCheckOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as RecordCheckAction,
         dispatch,
       );
 
@@ -259,8 +311,8 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(ArchiveInputSchema).parse(action.input);
 
       integrationLifecycleOperations.archiveOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as ArchiveAction,
         dispatch,
       );
 

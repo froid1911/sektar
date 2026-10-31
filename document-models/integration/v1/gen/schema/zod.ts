@@ -14,6 +14,7 @@ import type {
   CalendarRef,
   CalendarRefInput,
   CalendarSource,
+  ClearGrantInput,
   DateRangeBackfill,
   EmailSource,
   FolderListBackfill,
@@ -24,6 +25,7 @@ import type {
   IntegrationCheckRequest,
   IntegrationFix,
   IntegrationFixInput,
+  IntegrationGrant,
   IntegrationIntent,
   IntegrationIssue,
   IntegrationIssueInput,
@@ -46,6 +48,7 @@ import type {
   SetCalendarSourceInput,
   SetConnectionInput,
   SetEmailSourceInput,
+  SetGrantInput,
   SetLiveEnabledInput,
   SetLiveIntervalInput,
   SetTransactionsSourceInput,
@@ -196,6 +199,14 @@ export function CalendarSourceSchema(): z.ZodObject<
   });
 }
 
+export function ClearGrantInputSchema(): z.ZodObject<
+  Properties<ClearGrantInput>
+> {
+  return z.object({
+    _: z.boolean().nullish(),
+  });
+}
+
 export function DateRangeBackfillSchema(): z.ZodObject<
   Properties<DateRangeBackfill>
 > {
@@ -293,6 +304,18 @@ export function IntegrationFixInputSchema(): z.ZodObject<
   });
 }
 
+export function IntegrationGrantSchema(): z.ZodObject<
+  Properties<IntegrationGrant>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationGrant").optional(),
+    expiresAt: z.iso.datetime(),
+    grantedAt: z.iso.datetime(),
+    person: z.string(),
+    statement: z.string(),
+  });
+}
+
 export function IntegrationIntentSchema(): z.ZodObject<
   Properties<IntegrationIntent>
 > {
@@ -375,6 +398,7 @@ export function IntegrationStateSchema(): z.ZodObject<
     check: z.lazy(() => IntegrationCheckSchema().nullish()),
     checkRequest: z.lazy(() => IntegrationCheckRequestSchema().nullish()),
     fixes: z.array(z.lazy(() => IntegrationFixSchema())),
+    grant: z.lazy(() => IntegrationGrantSchema().nullish()),
     intent: z.lazy(() => IntegrationIntentSchema()),
     kind: IntegrationKindSchema.nullish(),
     provider: z.string().nullish(),
@@ -501,6 +525,15 @@ export function SetEmailSourceInputSchema(): z.ZodObject<
     address: z.string().nullish(),
     folders: z.array(z.string()),
     mailbox: z.string(),
+  });
+}
+
+export function SetGrantInputSchema(): z.ZodObject<Properties<SetGrantInput>> {
+  return z.object({
+    expiresAt: z.iso.datetime(),
+    grantedAt: z.iso.datetime(),
+    person: z.string(),
+    statement: z.string(),
   });
 }
 

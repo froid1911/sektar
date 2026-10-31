@@ -1,4 +1,4 @@
-import { dispatchActions } from "@powerhousedao/reactor-browser";
+import { desktopShell, dispatchActions } from "@powerhousedao/reactor-browser";
 import { actions } from "document-models/integration";
 import { generateId } from "document-model";
 import { useEffect, useRef, useState } from "react";
@@ -89,14 +89,20 @@ export function SignIn({
     const mine = ++attempt.current;
     stopPolling();
     setMessage(null);
+    // A desktop window holds no popup: the system browser takes the sign-in,
+    // and the poll below sees it finish.
+    const shell = desktopShell();
     // Opened now, inside the click, so no popup blocker stops it; a retry
     // reuses the window by name.
-    const win = window.open("", "sektar-sign-in", "popup,width=520,height=680");
+    const win = shell
+      ? null
+      : window.open("", "sektar-sign-in", "popup,width=520,height=680");
     popup.current = win;
     try {
       const started = await startSignIn(url, connectionId);
       if (mine !== attempt.current) return;
-      if (win) win.location.href = started.authorizationUrl;
+      if (shell) await shell.openExternal(started.authorizationUrl);
+      else if (win) win.location.href = started.authorizationUrl;
       else window.location.assign(started.authorizationUrl);
       setPhase("waiting");
       const until = Date.now() + GIVE_UP_MS;

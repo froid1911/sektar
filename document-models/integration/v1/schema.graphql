@@ -40,6 +40,18 @@ type IntegrationState {
   fixes: [IntegrationFix!]!
   "The reactor that fetches and holds the token; null: the switchboard that owns this drive, until it claims it"
   runner: IntegrationRunner
+  "Who lets Sektar write for this integration; null: nobody yet"
+  grant: IntegrationGrant
+}
+
+type IntegrationGrant {
+  "The signed statement naming this environment's runner key (ADR 0008)"
+  statement: String!
+  "The person it acts for"
+  person: String!
+  grantedAt: DateTime!
+  "When the statement ends; a signed-in browser renews it"
+  expiresAt: DateTime!
 }
 
 enum IntegrationKind {
@@ -288,6 +300,20 @@ input BankAccountLinkInput {
 input SetTransactionsSourceInput {
   bankConnectionId: String!
   accounts: [BankAccountLinkInput!]!
+}
+
+input SetGrantInput {
+  "The signed statement naming this environment's runner key"
+  statement: String!
+  "The person it acts for"
+  person: String!
+  grantedAt: DateTime!
+  "When the statement ends"
+  expiresAt: DateTime!
+}
+
+input ClearGrantInput {
+  _: Boolean
 }
 
 # live

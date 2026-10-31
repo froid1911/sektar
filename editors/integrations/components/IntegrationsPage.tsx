@@ -24,6 +24,7 @@ import { useSyncNow, useTriggerStates } from "../../sektar/kit/use-sync.js";
 import { useCallback, useMemo, useState } from "react";
 import { CreateFlow, firstStep, STEPS, type CreateStep } from "./CreateFlow.js";
 import { IntegrationCard } from "./IntegrationCard.js";
+import { useRenewGrants } from "./use-renew-grants.js";
 import { IntegrationDetail } from "./IntegrationDetail.js";
 import { useHashStep } from "./use-hash-step.js";
 
@@ -45,6 +46,7 @@ export function IntegrationsPage() {
   const [drive] = useSelectedDrive();
   const items = useIntegrationItems(drive);
   const docs = useMemo(() => items ?? [], [items]);
+  useRenewGrants(docs);
   const queueIds = useMemo(
     () =>
       docs.flatMap((d) =>

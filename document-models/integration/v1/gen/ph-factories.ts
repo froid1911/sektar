@@ -50,6 +50,7 @@ export function defaultGlobalState(): IntegrationGlobalState {
     checkRequest: null,
     fixes: [],
     runner: null,
+    grant: null,
   };
 }
 

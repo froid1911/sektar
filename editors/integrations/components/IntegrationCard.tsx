@@ -24,6 +24,7 @@ import {
 } from "../../sektar/kit/sign-in-place.js";
 import { Alert, Badge, Button, cx, Icon, Modal } from "../../sektar/kit/ui.js";
 import { AccountLabel, CardRows } from "./CardRows.js";
+import { Grant } from "./Grant.js";
 import type { TriggerState } from "../../sektar/kit/workflow-runtime.js";
 import { SignIn } from "./SignIn.js";
 import { TryAgain } from "./TryAgain.js";
@@ -74,6 +75,7 @@ export function IntegrationCard({
   const parked = s.check?.issues.find((i) =>
     i.code.endsWith("_WORKFLOW_PARKED"),
   );
+  const needsGrant = s.check?.issues.some((i) => i.code === "NEEDS_GRANT");
   return (
     <article
       className={cx(
@@ -177,6 +179,7 @@ export function IntegrationCard({
       {view.state === "waiting-for-sign-in" && (
         <SignIn integration={integration} />
       )}
+      {needsGrant && <Grant integration={integration} />}
       {parked?.subject && (
         <TryAgain integration={integration} workflowId={parked.subject} />
       )}

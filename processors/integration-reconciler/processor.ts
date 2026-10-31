@@ -17,6 +17,8 @@ import {
   utils as connectionUtils,
 } from "@powerhousedao/workflow/document-models/connection";
 import { utils as workflowUtils } from "@powerhousedao/workflow/document-models/workflow";
+import { signDelegatedAction, type IRenownCrypto } from "@renown/sdk/node";
+import type { Action } from "document-model";
 import { generateId } from "document-model";
 import { utils as queueUtils } from "document-models/original-source-queue";
 import type { QueueState } from "../../editors/backfills/progress.js";
@@ -39,16 +41,76 @@ import {
   type RecordedResources,
 } from "./recorded-resources.js";
 import { runnerIdentity } from "./runner.js";
+import { loadRunnerKey } from "./runner-key.js";
+import {
+  CredentialWatch,
+  judgeGrant,
+  PUBLISH_WORKFLOW,
+  type HostFacts,
+  type ReconcileGrant,
+} from "./grant.js";
 
 export const INTEGRATION_TYPE = "sektar/integration";
 /** The switchboard's own reactor connection: steps that write documents use it. */
 const REACTOR_CONNECTOR = "@powerhousedao/reactor#reactor";
+/** How a delegate's signature labels itself; unsigned, so a label and no more. */
+const RUNNER_APP = "sektar-runner";
 /** Where backfill queues live (hosts/*: slug "backfills", drive app backfills) */
 const BACKFILLS_DRIVE = "backfills";
 const SWEEP_MS = 60_000;
 const STARTUP_MS = 5_000;
 
-type Module = Pick<IProcessorHostModule, "read" | "dispatch" | "getReadModel">;
+type Module = Pick<
+  IProcessorHostModule,
+  "read" | "dispatch" | "getReadModel" | "host"
+>;
+
+/** The workflow's latest applied publish, as the runtime reads the run user. */
+async function latestPublisher(
+  read: Module["read"],
+  workflowId: string,
+  hostKey: string | undefined,
+): Promise<string | null> {
+  let page = await read.getOperations(
+    workflowId,
+    { scopes: ["global"] },
+    { actionTypes: [PUBLISH_WORKFLOW] },
+  );
+  let latest: { index: number; context: Action["context"] } | undefined;
+  for (;;) {
+    for (const { action, error, index } of page.results) {
+      if (action.type !== PUBLISH_WORKFLOW || error !== undefined) continue;
+      if (!latest || index > latest.index) {
+        latest = { index, context: action.context };
+      }
+    }
+    if (!page.next || page.results.length === 0) break;
+    page = await page.next();
+  }
+  const signer = latest?.context?.signer;
+  if (!signer?.signatures.length || signer.app.key === hostKey) return null;
+  return signer.user.address || null;
+}
+
+/** The switchboard's reactor connection that works; a revoked one grants nothing. */
+export async function findReactorConnection(
+  read: Module["read"],
+): Promise<string | null> {
+  const page = await read.find({ type: "powerhouse/connection" });
+  const found = page.results.find((doc) => {
+    const g = (
+      doc.state as unknown as {
+        global: { connectorId?: string; authType?: string; status?: string };
+      }
+    ).global;
+    return (
+      g.connectorId === REACTOR_CONNECTOR &&
+      g.authType === "REACTOR" &&
+      g.status !== "REVOKED"
+    );
+  });
+  return found?.header.id ?? null;
+}
 
 /** The workflow runtime's read model (Powerhouse reactor-workflow): present where the runtime runs. */
 const WORKFLOW_TRIGGERS_READ_MODEL = "workflow-triggers";
@@ -65,6 +127,9 @@ export class IntegrationReconciler implements IProcessor {
   private stopped = false;
   // The machine locally; the PUBLIC_URL host in an environment (runner.ts)
   private readonly identity = runnerIdentity(process.env.PUBLIC_URL, hostname());
+  private readonly watch = new CredentialWatch(process.env.RENOWN_URL);
+  /** Loaded once, on the first statement to judge. */
+  private runnerKey: Promise<IRenownCrypto> | undefined;
 
   constructor(
     private readonly driveId: string,
@@ -148,15 +213,84 @@ export class IntegrationReconciler implements IProcessor {
         name: doc.header.name,
         state: { ...read, resources: overlay.resources },
       },
-      this.io(id),
+      this.io(id, await this.grantFor(id, read)),
     );
   }
 
-  private io(integrationId: string): ReconcileIO {
+  private hostFacts(): HostFacts {
+    const host = this.module.host;
+    return {
+      environment: host?.key ?? null,
+      address: host?.address ?? null,
+      requiresPerson: host?.requiresPerson ?? false,
+    };
+  }
+
+  /** The runner key, or null when it cannot be read: asked again next pass. */
+  private async delegate(): Promise<IRenownCrypto | null> {
+    this.runnerKey ??= loadRunnerKey();
+    try {
+      return await this.runnerKey;
+    } catch (error) {
+      this.runnerKey = undefined;
+      console.warn(
+        `[integration-reconciler] the runner key cannot be read: ${String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async grantFor(
+    integrationId: string,
+    state: IntegrationState,
+  ): Promise<ReconcileGrant> {
+    const grant = state.grant ?? null;
+    const key = grant ? await this.delegate() : null;
+    return judgeGrant({
+      integrationId,
+      grant,
+      host: this.hostFacts(),
+      delegate: key?.did ?? null,
+      now: Math.floor(Date.now() / 1000),
+      credential: (claims) => this.watch.status(claims),
+    });
+  }
+
+  /**
+   * Signs the publishes among `list` as the person who granted this
+   * integration. The rest stay for the host: a batch may mix the two, and the
+   * reactor leaves an action already signed as it is.
+   */
+  private async signed<A extends Action>(
+    workflowId: string,
+    list: A[],
+    grant: ReconcileGrant,
+  ): Promise<A[]> {
+    if (grant.kind !== "delegated") return list;
+    const crypto = await this.delegate();
+    if (!crypto) throw new Error("The runner key cannot be read");
+    return Promise.all(
+      list.map(async (action) =>
+        action.type === PUBLISH_WORKFLOW
+          ? ((await signDelegatedAction({
+              action,
+              target: { documentId: workflowId, branch: "main" },
+              crypto,
+              appName: RUNNER_APP,
+              user: grant.person,
+              statement: grant.statement,
+            })) as A)
+          : action,
+      ),
+    );
+  }
+
+  private io(integrationId: string, grant: ReconcileGrant): ReconcileIO {
     const { read, dispatch } = this.module;
     return {
       me: this.identity.me,
       environment: this.identity.environment,
+      grant,
       now: () => new Date().toISOString(),
       readConnection: async (id) => {
         let doc;
@@ -237,20 +371,7 @@ export class IntegrationReconciler implements IProcessor {
       },
       newId: () => generateId(),
       drive: (slug) => resolveDriveId(read, slug),
-      findReactorConnection: async () => {
-        const page = await read.find({ type: "powerhouse/connection" });
-        const found = page.results.find((doc) => {
-          const g = (
-            doc.state as unknown as {
-              global: { connectorId?: string; authType?: string };
-            }
-          ).global;
-          return (
-            g.connectorId === REACTOR_CONNECTOR && g.authType === "REACTOR"
-          );
-        });
-        return found?.header.id ?? null;
-      },
+      findReactorConnection: () => findReactorConnection(read),
       readWorkflow: async (id) => {
         let doc;
         try {
@@ -294,6 +415,7 @@ export class IntegrationReconciler implements IProcessor {
           triggerReactorConnectionId: trigger?.reactorConnectionId ?? null,
           managedBy: g.managedBy?.documentId ?? null,
           defaultRetry: g.published?.policy?.defaultRetry ?? null,
+          publisher: await latestPublisher(read, id, this.module.host?.key),
           steps: (g.published?.steps ?? []).map((step) => ({
             id: step.id,
             key: step.key,
@@ -312,11 +434,11 @@ export class IntegrationReconciler implements IProcessor {
           document,
         );
         const id = created.documentId || document.header.id;
-        await dispatch.execute(id, "main", list);
+        await dispatch.execute(id, "main", await this.signed(id, list, grant));
         return id;
       },
       updateWorkflow: async (id, list) => {
-        await dispatch.execute(id, "main", list);
+        await dispatch.execute(id, "main", await this.signed(id, list, grant));
       },
       createQueue: async (name, list) => {
         const backfills = await resolveDriveId(read, BACKFILLS_DRIVE);

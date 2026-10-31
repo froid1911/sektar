@@ -16,6 +16,7 @@ import {
   createActions,
   defaultChoices,
 } from "../../editors/sektar/kit/integrations.js";
+import type { ReconcileGrant } from "./grant.js";
 import {
   connectionFor,
   GOOGLE_APP,
@@ -143,9 +144,11 @@ function world(
       }
     }
   };
+  let grant: ReconcileGrant = { kind: "host" };
   const io = (me = PC, environment = false): ReconcileIO => ({
     me,
     environment,
+    grant,
     now: () => "2026-10-28T10:00:00.000Z",
     readConnection: (id) => Promise.resolve(connections.get(id) ?? null),
     createConnection: (spec) => {
@@ -255,6 +258,12 @@ function world(
     },
     refuseManaged: () => {
       refuseManaged = true;
+    },
+    grantIs: (next: ReconcileGrant) => {
+      grant = next;
+    },
+    publishedBy: (id: string, publisher: string | null) => {
+      workflows.get(id)!.publisher = publisher;
     },
     noReactorConnection: () => {
       reactorConnection = null;
@@ -480,8 +489,177 @@ describe("the live workflow", () => {
     expect(w.workflows.size).toBe(0);
     expect(s.applied).toBeNull();
     expect(s.check?.issues.map((i) => [i.code, i.severity])).toEqual([
-      ["NO_REACTOR_CONNECTION", "BLOCKING"],
+      ["NEEDS_GRANT", "BLOCKING"],
     ]);
+  });
+});
+
+describe("the grant", () => {
+  const PERSON = "0xPerson";
+  const DELEGATED: ReconcileGrant = {
+    kind: "delegated",
+    person: { address: PERSON, networkId: "eip155", chainId: 1 },
+    statement: "a.statement",
+    expiresAt: "2026-11-29T00:00:00.000Z",
+  };
+
+  async function signedIn(grant: ReconcileGrant = { kind: "host" }) {
+    const w = world();
+    w.grantIs(grant);
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    return w;
+  }
+  const publishes = (w: ReturnType<typeof world>, id: string) =>
+    w.workflows.get(id)!.actions.filter((a) => a.type === "PUBLISH_WORKFLOW");
+  const blocking = (w: ReturnType<typeof world>) =>
+    w.doc.state.global.check?.issues.map((i) => [i.code, i.fixable]);
+
+  it("builds nothing as nobody, and says what would fix it", async () => {
+    const w = await signedIn({ kind: "needed", gap: "missing" });
+    expect(w.workflows.size).toBe(0);
+    expect(blocking(w)).toEqual([["NEEDS_GRANT", true]]);
+    expect(w.doc.state.global.check?.issues[0].message).toBe(
+      "Sektar needs your approval to write documents on this computer",
+    );
+  });
+
+  it("speaks of the environment there", async () => {
+    const w = world();
+    w.grantIs({ kind: "needed", gap: "missing" });
+    await w.pass(CLOUD, true);
+    w.signIn();
+    await w.pass(CLOUD, true);
+    expect(w.doc.state.global.check?.issues[0].message).toBe(
+      "Sektar needs your approval to write documents in this environment",
+    );
+  });
+
+  it("still gets the sign-in done first, so the card asks one thing at a time", async () => {
+    const w = world();
+    w.grantIs({ kind: "needed", gap: "missing" });
+    await w.pass();
+    expect(blocking(w)).toEqual([["NEEDS_SIGN_IN", false]]);
+  });
+
+  it("builds once it is granted, with no second approval", async () => {
+    const w = await signedIn({ kind: "needed", gap: "missing" });
+    w.grantIs(DELEGATED);
+    await w.pass();
+    expect(w.workflows.size).toBeGreaterThan(0);
+    expect(w.doc.state.global.check?.issues).toEqual([]);
+  });
+
+  it("publishes as the person over a workflow the host published", async () => {
+    const w = await signedIn();
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    const before = publishes(w, id).length;
+    w.publishedBy(id, null);
+
+    w.grantIs(DELEGATED);
+    await w.pass();
+
+    expect(publishes(w, id)).toHaveLength(before + 1);
+  });
+
+  it("raises the version, so a workflow parked for want of a person starts again", async () => {
+    const w = await signedIn();
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    w.publishedBy(id, null);
+    const count = w.workflows.get(id)!.actions.length;
+
+    w.grantIs(DELEGATED);
+    await w.pass();
+
+    expect(
+      w.workflows.get(id)!.actions.slice(count).map((a) => a.type),
+    ).toEqual(["SET_POLICY", "PUBLISH_WORKFLOW"]);
+  });
+
+  it("publishes as the new person when someone else granted before", async () => {
+    const w = await signedIn(DELEGATED);
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    const before = publishes(w, id).length;
+    w.publishedBy(id, "0xSomeoneElse");
+
+    await w.pass();
+
+    expect(publishes(w, id)).toHaveLength(before + 1);
+  });
+
+  it("leaves a workflow the person already published alone, whatever the case", async () => {
+    const w = await signedIn(DELEGATED);
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    w.publishedBy(id, PERSON.toLowerCase());
+    const before = publishes(w, id).length;
+
+    await w.pass();
+
+    expect(publishes(w, id)).toHaveLength(before);
+  });
+
+  it.each(["ended", "revoked", "invalid"] as const)(
+    "stops what a person's approval kept running when it is %s",
+    async (gap) => {
+      const w = await signedIn(DELEGATED);
+      const id = w.doc.state.global.resources.liveWorkflowId!;
+      expect(w.workflows.get(id)!.status).toBe("ENABLED");
+      const before = publishes(w, id).length;
+
+      w.grantIs({ kind: "needed", gap, endedAt: "2026-11-29T00:00:00.000Z" });
+      await w.pass();
+
+      expect(w.workflows.get(id)!.status).toBe("DISABLED");
+      expect(publishes(w, id)).toHaveLength(before);
+      expect(blocking(w)).toEqual([["NEEDS_GRANT", true]]);
+    },
+  );
+
+  it("says when an approval ended", async () => {
+    const w = await signedIn(DELEGATED);
+    w.grantIs({
+      kind: "needed",
+      gap: "ended",
+      endedAt: "2026-11-29T00:00:00.000Z",
+    });
+    await w.pass();
+    expect(w.doc.state.global.check?.issues[0].message).toBe(
+      "Your approval ended on 2026-11-29. Approve again to carry on",
+    );
+  });
+
+  it("repairs nothing while it waits: replay after revocation signs nothing", async () => {
+    const w = await signedIn(DELEGATED);
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    const before = publishes(w, id).length;
+    w.grantIs({ kind: "needed", gap: "revoked" });
+    await w.pass();
+    // Someone edits the workflow meanwhile: the drift waits for a person.
+    w.workflows.get(id)!.triggerConfig = { tampered: true };
+    await w.pass();
+    await w.pass();
+    expect(publishes(w, id)).toHaveLength(before);
+    expect(w.workflows.get(id)!.triggerConfig).toEqual({ tampered: true });
+  });
+
+  it("switches back on once it is granted again", async () => {
+    const w = await signedIn(DELEGATED);
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    w.grantIs({ kind: "needed", gap: "ended" });
+    await w.pass();
+    expect(w.workflows.get(id)!.status).toBe("DISABLED");
+    w.grantIs(DELEGATED);
+    await w.pass();
+    expect(w.workflows.get(id)!.status).toBe("ENABLED");
+  });
+
+  it("leaves workflows that never had an approval as they are", async () => {
+    const w = await signedIn();
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    w.grantIs({ kind: "needed", gap: "missing" });
+    await w.pass();
+    expect(w.workflows.get(id)!.status).toBe("ENABLED");
   });
 });
 
@@ -959,9 +1137,10 @@ describe("a reconcile pass", () => {
     await w.pass(CLOUD, true);
     expect(w.doc.state.global.check?.issues).toEqual([
       expect.objectContaining({
-        code: "NO_REACTOR_CONNECTION",
+        code: "NEEDS_GRANT",
+        fixable: true,
         message:
-          "This environment has no connection for workflows to write documents with",
+          "Sektar needs your approval to write documents in this environment",
       }),
     ]);
   });
@@ -1114,6 +1293,7 @@ describe("a reconcile pass", () => {
       { id: "x", name: "x", state: s },
       {
         me: PC,
+        grant: { kind: "host" },
         now: () => "2026-10-28T10:00:00.000Z",
         readConnection: () => Promise.resolve(null),
         createConnection: () => Promise.reject(new Error("no")),

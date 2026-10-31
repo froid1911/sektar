@@ -255,6 +255,9 @@ export async function indexBySlug(
   return index;
 }
 
+/** How a refusal reads, as opposed to an index that is not there. */
+const REFUSED = /authentication required|forbidden|unauthori[sz]ed|not an admin/i;
+
 /**
  * The documents of a batch that already exist, by key, asked of the key
  * index through the reactor: the host runs the query in process as this
@@ -263,6 +266,7 @@ export async function indexBySlug(
  * exists" when the index could not be asked would turn every item into a
  * twin.
  */
+
 export async function indexByRemote(options: {
   reactor: Pick<UpsertReactor, "query">;
   driveId: string;
@@ -284,8 +288,11 @@ export async function indexByRemote(options: {
       variables: { d: options.driveId, t: options.documentType, k: keys },
     })) as typeof payload;
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `The key index could not be asked (${error instanceof Error ? error.message : String(error)}); nothing was written. Is the key-index subgraph installed on the switchboard?`,
+      REFUSED.test(message)
+        ? `The key index refused this run (${message}); nothing was written. It needs someone's approval to read as them.`
+        : `The key index could not be asked (${message}); nothing was written. Is the key-index subgraph installed on the switchboard?`,
     );
   }
   if (payload.errors?.length) {

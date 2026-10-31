@@ -157,6 +157,10 @@ export type CalendarSource = {
   calendars: Array<CalendarRef>;
 };
 
+export type ClearGrantInput = {
+  _?: InputMaybe<Scalars["Boolean"]["input"]>;
+};
+
 export type DateRangeBackfill = {
   /** Which end it starts from; null: BACKWARD, newest first (the queue's own default) */
   direction: Maybe<BackfillDirection>;
@@ -225,6 +229,16 @@ export type IntegrationFixInput = {
   code: Scalars["String"]["input"];
   message: Scalars["String"]["input"];
   subject?: InputMaybe<Scalars["PHID"]["input"]>;
+};
+
+export type IntegrationGrant = {
+  /** When the statement ends; a signed-in browser renews it */
+  expiresAt: Scalars["DateTime"]["output"];
+  grantedAt: Scalars["DateTime"]["output"];
+  /** The person it acts for */
+  person: Scalars["String"]["output"];
+  /** The signed statement naming this environment's runner key (ADR 0008) */
+  statement: Scalars["String"]["output"];
 };
 
 export type IntegrationIntent = {
@@ -301,6 +315,8 @@ export type IntegrationState = {
   checkRequest: Maybe<IntegrationCheckRequest>;
   /** What the reconciler put back, latest first, at most 20 */
   fixes: Array<IntegrationFix>;
+  /** Who lets Sektar write for this integration; null: nobody yet */
+  grant: Maybe<IntegrationGrant>;
   /** What the user asked for; written from the app */
   intent: IntegrationIntent;
   /** What comes in; fixed by INITIALIZE. Null until then */
@@ -396,6 +412,16 @@ export type SetEmailSourceInput = {
   address?: InputMaybe<Scalars["String"]["input"]>;
   folders: Array<Scalars["String"]["input"]>;
   mailbox: Scalars["String"]["input"];
+};
+
+export type SetGrantInput = {
+  /** When the statement ends */
+  expiresAt: Scalars["DateTime"]["input"];
+  grantedAt: Scalars["DateTime"]["input"];
+  /** The person it acts for */
+  person: Scalars["String"]["input"];
+  /** The signed statement naming this environment's runner key */
+  statement: Scalars["String"]["input"];
 };
 
 export type SetLiveEnabledInput = {

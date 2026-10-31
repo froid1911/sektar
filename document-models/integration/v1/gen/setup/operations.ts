@@ -5,11 +5,13 @@
 import { type SignalDispatch } from "document-model";
 import type { IntegrationGlobalState } from "../types.js";
 import type {
+  ClearGrantAction,
   InitializeAction,
   SetAccessAction,
   SetCalendarSourceAction,
   SetConnectionAction,
   SetEmailSourceAction,
+  SetGrantAction,
   SetTransactionsSourceAction,
 } from "./actions.js";
 
@@ -42,6 +44,16 @@ export interface IntegrationSetupOperations {
   setTransactionsSourceOperation: (
     state: IntegrationGlobalState,
     action: SetTransactionsSourceAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  setGrantOperation: (
+    state: IntegrationGlobalState,
+    action: SetGrantAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  clearGrantOperation: (
+    state: IntegrationGlobalState,
+    action: ClearGrantAction,
     dispatch?: SignalDispatch,
   ) => void;
 }
