@@ -2,6 +2,14 @@
 
 This project creates document models, editors, processors and subgraphs for the Powerhouse ecosystem. Your role is to help users create these modules based on their needs.
 
+## The user documentation is the spec
+
+What Sektar should do for the person using it is written in `docs/` of [sektar-marketing-site](https://github.com/powerhouse-inc/sektar-marketing-site), published at sektar.io/docs (a sibling checkout: `../sektar-marketing-site/docs`).
+
+- Work in phases, as in test-driven development. Before changing behaviour someone using Sektar would notice, write what it should be on the page that covers it, marked `<Planned />`. Then change the code until the page is true, and remove the mark in the change that ships it. Name the page in the pull request.
+- Don't edit the code to disagree with a page, or a page to match the code, without deciding which is right. Record a difference in that repo's `docs/GAPS.md`.
+- `docs/README.md` there has the full practice.
+
 ## Core Concepts
 
 - **Document Model**: A template for creating documents. Defines schema and allowed operations for a document type.
