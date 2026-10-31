@@ -44,6 +44,7 @@ import { runnerIdentity } from "./runner.js";
 import { loadRunnerKey } from "./runner-key.js";
 import {
   CredentialWatch,
+  credentialStatusOn,
   judgeGrant,
   PUBLISH_WORKFLOW,
   type HostFacts,
@@ -252,7 +253,7 @@ export class IntegrationReconciler implements IProcessor {
       host: this.hostFacts(),
       delegate: key?.did ?? null,
       now: Math.floor(Date.now() / 1000),
-      credential: (claims) => this.watch.status(claims),
+      credential: credentialStatusOn(process.env.RENOWN_SOURCE, this.watch),
     });
   }
 

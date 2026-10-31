@@ -533,7 +533,50 @@ test("the packaged app loads Sektar's own pieces and document models", { skip: !
     assert.doesNotMatch(logText(), /has no version in/);
     assert.doesNotMatch(logText(), /no importable document-models entry/);
     assert.doesNotMatch(logText(), /is not available; runs/);
-    assert.match(logText(), /Loaded d+ piece(s) from package .*stack: .*distyra/);
+    assert.match(logText(), /Loaded \d+ piece\(s\) from package .*stack: .*distyra/);
+  } finally {
+    await app.stop();
+  }
+});
+
+// Only on a build with a demo key, and it asks the real OpenRouter whether the
+// key is good, which spends nothing.
+const hasDemoKey =
+  Boolean(installed) && fs.existsSync(path.join(path.dirname(installed ?? ""), "stack/ai"));
+
+test("an admin can use the demo key, and choose auto-approve", { skip: !hasDemoKey }, async () => {
+  await clearWindow();
+  const root = scratchRoot("demo-key");
+  writeSettings(root);
+  const app = await launch(root);
+  const checkbox = '.sk-assistant__key input[type="checkbox"]';
+  try {
+    await signInPage(app.page);
+    await createLocalKey(app.page);
+    await connectIsOpen(app.page);
+
+    // A new identity is asked its name first.
+    const name = '.sk-name-dialog input[name="user-name"]';
+    await app.page.fill(name, "Tester", { timeout: 60_000 });
+    await app.page.press(name, "Enter");
+
+    await app.page.getByRole("button", { name: "Use the demo key" }).click({ timeout: 60_000 });
+    await app.page.waitForSelector(checkbox, { timeout: 30_000 });
+    assert.doesNotMatch(await app.page.content(), /sk-or-v1-[a-z0-9]{20,}/);
+    await app.page.waitForFunction(() =>
+      document.body.textContent.includes("asks you first"),
+    );
+
+    await app.page.check(checkbox);
+    await app.page.waitForFunction(() =>
+      document.body.textContent.includes("made without asking"),
+    );
+
+    // It lasts, as the page has only this identity's choice to go on.
+    await app.page.reload();
+    await connectIsOpen(app.page);
+    await app.page.waitForSelector(checkbox, { timeout: 60_000 });
+    assert.equal(await app.page.isChecked(checkbox), true);
   } finally {
     await app.stop();
   }

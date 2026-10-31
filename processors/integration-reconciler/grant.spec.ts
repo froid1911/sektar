@@ -13,6 +13,7 @@ import { createRequire } from "node:module";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   CredentialWatch,
+  credentialStatusOn,
   integrationResource,
   judgeGrant,
   type HostFacts,
@@ -37,6 +38,28 @@ const INTEGRATION = "i-1";
 
 const newKey = (): Promise<IRenownCrypto> =>
   new RenownCryptoBuilder().withKeyPairStorage(new MemoryKeyStorage()).build();
+
+describe("credentialStatusOn", () => {
+  const claims = {} as Parameters<CredentialWatch["status"]>[0];
+
+  it("never asks Renown about a local key's credentials", async () => {
+    const watch = { status: vi.fn(() => Promise.resolve("revoked" as const)) };
+
+    const status = await credentialStatusOn("kept", watch)(claims);
+
+    expect(status).toBe("unknown");
+    expect(watch.status).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "remote", "self"])(
+    "keeps asking on a %s host, where a revocation means something",
+    async (source) => {
+      const watch = { status: vi.fn(() => Promise.resolve("revoked" as const)) };
+
+      expect(await credentialStatusOn(source, watch)(claims)).toBe("revoked");
+    },
+  );
+});
 
 describe("judging a grant", () => {
   let session: IRenownCrypto;
