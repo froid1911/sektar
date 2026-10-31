@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-renown-url"
+description = "Enables the save_renown_url command without any pre-configured scope."
+commands.allow = ["save_renown_url"]
+
+[[permission]]
+identifier = "deny-save-renown-url"
+description = "Denies the save_renown_url command without any pre-configured scope."
+commands.deny = ["save_renown_url"]

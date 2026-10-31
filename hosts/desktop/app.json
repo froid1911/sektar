@@ -1,6 +1,7 @@
 {
   "identifier": "inc.powerhouse.desktop.sektar",
   "productName": "Sektar",
+  "signIn": true,
   "icon": "../../icons/sektar.png",
   "background": {
     "layers": [

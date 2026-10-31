@@ -7,11 +7,23 @@
 // `ph run desktop <verb>` forwards uniformly. Members derive from the sibling
 // hosts (full inclusion); the server member serves the switchboard host's
 // drives, and the connect member attaches every drive the server reports
-// (declared and plugin-created) as REMOTES, by `$map` over its outputs.
+// (declared and plugin-created) as REMOTES. Connect is a pure remote client,
+// as on the cli and vetra hosts: no reactor and no store in the window, which
+// outlives any one identity, so nothing of a person's stays there.
+//
+// The shell starts all this after someone has signed in (app.json `signIn`):
+// it points ${userData} at that identity's folder and sets ADMINS.
 import config from "../../powerhouse.config.json" with { type: "json" };
 import switchboard from "../switchboard/host.js";
 import connect from "../connect/host.js";
 import { outputs as server } from "../switchboard/outputs.js";
+
+/** The drives the switchboard reports (hosts/switchboard/outputs.js). */
+const SERVED_DRIVES = /** @type {Exclude<keyof typeof server.drives, "$item">[]} */ (
+  Object.keys(server.drives)
+    .filter((key) => key !== "$item")
+    .sort()
+);
 
 /** @satisfies {PHHost} */
 export default {
@@ -64,21 +76,26 @@ export default {
         port: config.studio?.port ?? 3000,
         proxy: { target: server.origin },
       },
-      // Attach every drive the server member serves as a remote, by the URL
-      // it reports (key-sorted). The Workflows drive is among them; the
-      // inherited workflows plugin names the same URL, and Connect attaches
-      // a URL once.
+      // The app is always served from this computer, so there's nothing for a
+      // service worker to do, and it would answer for the sign-in page, which
+      // the shell serves from this same address before Connect starts.
+      config: { app: { ...config.connect?.app, offline: false } },
+      // Every drive the server member serves, by the URL it reports, in
+      // key-sorted order. The Workflows drive is among them; the inherited
+      // workflows plugin names the same URL, and Connect attaches a URL once.
       reactor: {
-        ...connect.reactor,
-        drives: {
-          $map: {
-            over: { $output: { host: "switchboard", path: ["drives"] } },
-            to: {
-              slug: { $key: true },
-              remote: { url: server.drives.$item.url },
-            },
+        protocol: connect.reactor.protocol,
+        backends: {
+          sb: {
+            kind: "remote",
+            // a remote backend is named by one of its drives
+            remote: { url: server.drives.sektar.url },
           },
         },
+        drives: SERVED_DRIVES.map((slug) => ({
+          slug,
+          remote: { url: server.drives[slug].url },
+        })),
       },
     },
     "desktop-switchboard": {

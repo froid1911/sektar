@@ -15,6 +15,16 @@
     "allow-take-launch-files",
     "allow-read-launch-file",
     "allow-log-from-webview",
-    "allow-open-external"
+    "allow-open-external",
+    "allow-desktop-state",
+    "allow-pick-root",
+    "allow-save-renown-url",
+    "allow-local-create",
+    "allow-local-unlock",
+    "allow-saved-credential",
+    "allow-save-profile",
+    "allow-adopt-old-data",
+    "allow-start-stack",
+    "allow-switch-identity"
   ]
 }
