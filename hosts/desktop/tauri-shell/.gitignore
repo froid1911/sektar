@@ -8,5 +8,6 @@
 /ui/art.*
 /ui/art-dark.*
 /ui/bg-*
+/ui/sign-in.*
 /dist-stack
 /binaries

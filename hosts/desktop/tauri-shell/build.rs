@@ -14,6 +14,16 @@ fn main() {
             "read_launch_file",
             "log_from_webview",
             "open_external",
+            "desktop_state",
+            "pick_root",
+            "save_renown_url",
+            "local_create",
+            "local_unlock",
+            "saved_credential",
+            "save_profile",
+            "adopt_old_data",
+            "start_stack",
+            "switch_identity",
         ]),
     ))
     .expect("failed to run tauri-build");

@@ -18,8 +18,20 @@ import {
 // with `?user=<did>`, which Connect consumes at boot. Signed in: the design
 // system's user chip with a small menu (profile, copy address, theme, sign
 // out).
+
+/** The desktop shell around this window: there, an identity is who the app
+ * started for, so leaving it means going back to the sign-in page. */
+function desktopShell() {
+  return (
+    window as Window & {
+      phDesktop?: { switchIdentity(): Promise<void> };
+    }
+  ).phDesktop;
+}
+
 export function UserMenu() {
   const auth = useRenownAuth();
+  const desktop = desktopShell();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [naming, setNaming] = useState(false);
@@ -159,10 +171,12 @@ export function UserMenu() {
               className="sk-menu__item sk-menu__item--danger"
               onClick={() => {
                 setOpen(false);
-                void auth.logout();
+                if (desktop) void desktop.switchIdentity();
+                else void auth.logout();
               }}
             >
-              <Icon name="close" mono /> Sign out
+              <Icon name="close" mono />{" "}
+              {desktop ? "Switch identity" : "Sign out"}
             </button>
           </li>
         </ul>

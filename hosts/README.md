@@ -43,41 +43,65 @@ The runners come from the linked monorepo checkout (`../powerhouse`, or
 
 ### Sign-in on the `desktop` host
 
-`desktop` enforces Renown sign-in as `cli` does, through `config.switchboard`
-on its server member rather than env, since nobody edits an env file on a
-person's own computer (`docs/adr/0008-delegated-signers.md` in the monorepo):
+`desktop` signs in before anything runs. `hosts/desktop/app.json` has
+`signIn: true`, so the shell opens a page of its own and holds the stack back
+until someone has picked an identity, with Renown or with a local key. What the
+user sees is documented on the website, in `docs/where-sektar-runs.mdx`, which
+is the spec for all of this.
 
-- The first person to sign in becomes the owner, recorded in
-  `${userData}/.ph/.owner.json`. Delete that file to give the computer to
-  someone else. A set `ADMINS` wins over it.
-- The server binds `127.0.0.1`, which is what makes that safe.
+The data folder the user chose holds `settings.json`, `local.key` and one folder
+per identity:
+
+```
+<root>/
+  settings.json          read before anything starts, never holds a secret
+  local.key              the local identity's key, in a password-encrypted keystore
+  local/                 the local identity, whichever key it has
+  0x…/                   one per Renown identity
+    .ph/                 the stack's storage: ${userData}/.ph
+    backups/
+    profile-cached.json  public information only
+    profile-cached.<ext> the avatar
+```
+
+The shell points `${userData}` at the identity's folder and sets `ADMINS` to its
+address, so the identity decides both whose storage this is and who runs it.
+The switchboard's auth comes through `config.switchboard` on its server member
+rather than env, since nobody edits an env file on a person's own computer
+(`docs/adr/0008-delegated-signers.md` in the monorepo):
+
+- The server binds `127.0.0.1`.
 - Verified credentials stay in `${userData}/.ph/.credentials.json`, so once
   signed in it works with Renown unreachable. A revocation lands the next time
   it is online.
-- `${userData}/.ph` holds three different things: the host's key
-  (`.keypair.json`), this environment's runner key (`.runner-keypair.json`) and
-  the two files above. The person's own key is in the webview's IndexedDB.
+- A local identity runs with `RENOWN_SOURCE=kept`: its credential is at no
+  Renown, so only what is kept there counts, and Renown is never asked.
+- `ownerClaim` stays on for a host run without the shell, where nothing sets
+  `ADMINS`. Set, `ADMINS` wins over it.
 
-Signing in from the app's one window needs `window.phDesktop.openExternal` from
-the shell. Without it Connect keeps Renown's redirect.
+The page is served from Connect's address, since the browser keeps a Renown
+session per origin, which is why this host turns Connect's service worker off.
+Connect is a remote client here, as on `cli`, so the window holds nothing of a
+person's and it can be handed to the next identity. Signing in needs
+`window.phDesktop.openExternal` from the shell; without it Connect keeps
+Renown's redirect.
 
 ### Reactor-client topologies (what runs the reactor, and where)
 
 The `reactor.backends` of a Connect host select which of four clients it
 runs — one field, derived from the backend topology:
 
-| host                       | backends                                | reactorClient | reactor + storage                                                               |
-| -------------------------- | --------------------------------------- | ------------- | ------------------------------------------------------------------------------- |
-| `connect` (standalone)     | one `in-process`                        | `in-process`  | the tab's own reactor on the main thread (PGlite in-page)                       |
-| `cli` → connect member     | one `remote`                            | `remote`      | NO local reactor — a pure client to the switchboard over GraphQL (no PGlite)    |
-| `desktop` → connect member | one `in-process` + `$map` remote drives | `in-process`  | the tab's reactor PLUS SYNCHRONIZED remote drives (local replica, keeps PGlite) |
+| host                       | backends         | reactorClient | reactor + storage                                                            |
+| -------------------------- | ---------------- | ------------- | ---------------------------------------------------------------------------- |
+| `connect` (standalone)     | one `in-process` | `in-process`  | the tab's own reactor on the main thread (PGlite in-page)                    |
+| `cli` → connect member     | one `remote`     | `remote`      | NO local reactor — a pure client to the switchboard over GraphQL (no PGlite) |
+| `desktop` → connect member | one `remote`     | `remote`      | as `cli`: the window outlives any one identity, so it must hold nothing      |
 
-The lesson the `cli` vs `desktop` split teaches: a **remote client** proxies
-to the switchboard and stores nothing locally (no PGlite); a **synchronized
-remote drive** keeps a local replica and therefore needs PGlite by design.
-The `worker` mode (reactor in a SharedWorker) is the fourth option; Sektar's
-connect host uses `in-process` because the built Connect's worker cannot
-import the local package.
+A **remote client** proxies to the switchboard and stores nothing locally (no
+PGlite); a **synchronized remote drive** would keep a local replica and
+therefore need PGlite by design. The `worker` mode (reactor in a SharedWorker)
+is the fourth option; Sektar's connect host uses `in-process` because the built
+Connect's worker cannot import the local package.
 
 The project drive (`sektar`) is OWNED by the switchboard; standalone Connect
 has its own local copy (the same declaration, read from the switchboard

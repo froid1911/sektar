@@ -1,9 +1,11 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   test: {
     globals: true,
+    // A desktop build leaves copies of the project here, tests included.
+    exclude: [...configDefaults.exclude, "hosts/desktop/tauri-shell/**"],
     coverage: {
       provider: "v8",
       include: ["document-models/**/src/reducers/**"],
