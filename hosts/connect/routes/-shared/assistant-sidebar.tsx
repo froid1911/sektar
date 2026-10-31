@@ -80,11 +80,15 @@ function SetupCard() {
                 title={info.label}
                 meta={info.lead}
                 chevron
+                // By slug: from an id the route redirects, and the hash is lost
                 onClick={() =>
                   void navigate({
                     to: "/d/$driveSlug/{-$nodeSlug}",
-                    params: { driveSlug: drive.header.id },
+                    params: { driveSlug: "integrations" },
                     hash: addHashFor(kind),
+                  }).then(() => {
+                    // The page follows the hash (useHashStep); a push does not announce it
+                    window.dispatchEvent(new HashChangeEvent("hashchange"));
                   })
                 }
               />

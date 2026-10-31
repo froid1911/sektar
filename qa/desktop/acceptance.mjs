@@ -268,6 +268,7 @@ test("a local key: created, unlocked, and its identity is the admin", async () =
     assert.match(logText(), new RegExp(`ADMINS=${wallet.address.toLowerCase()}`));
     assert.match(logText(), /RENOWN_SOURCE=kept/);
     if (installed) assert.match(logText(), /NODE_ENV=production/);
+    assert.doesNotMatch(logText(), /are refused until it is/);
 
     // The window keeps no documents of its own.
     const stores = await app.page.evaluate(async () =>
@@ -578,6 +579,35 @@ test("an admin can use the demo key, and choose auto-approve", { skip: !hasDemoK
     await connectIsOpen(app.page);
     await app.page.waitForSelector(checkbox, { timeout: 60_000 });
     assert.equal(await app.page.isChecked(checkbox), true);
+  } finally {
+    await app.stop();
+  }
+});
+
+test("each account to connect opens at its own category", async () => {
+  await clearWindow();
+  const root = scratchRoot("categories");
+  writeSettings(root);
+  const app = await launch(root);
+  const entries = ".sk-assistant-side__kinds li";
+  try {
+    await signInPage(app.page);
+    await createLocalKey(app.page);
+    await connectIsOpen(app.page);
+    const name = '.sk-name-dialog input[name="user-name"]';
+    await app.page.fill(name, "Tester", { timeout: 60_000 });
+    await app.page.press(name, "Enter");
+
+    for (const [entry, title] of [
+      ["Email", "Connect your email"],
+      ["Calendar", "Connect your calendar"],
+      ["Bank transactions", "Connect your bank transactions"],
+    ]) {
+      await app.page.goto(`http://127.0.0.1:${CONNECT_PORT}/productivity`);
+      await app.page.waitForSelector(entries, { timeout: 60_000 });
+      await app.page.locator(entries, { hasText: entry }).first().click();
+      await app.page.getByRole("heading", { name: title }).waitFor({ timeout: 30_000 });
+    }
   } finally {
     await app.stop();
   }
