@@ -208,10 +208,19 @@ async function anonymousStatus() {
   return response.status;
 }
 
+/** What's in the app's own folder, which outlives every identity. */
+function appFiles() {
+  const stack = path.join(path.dirname(installed), "stack");
+  const list = (folder) => fs.readdirSync(path.join(stack, folder)).sort();
+  return { stack: list("."), state: list(".ph") };
+}
+
 let renown;
+let appFilesAtStart;
 
 before(async () => {
   renown = await startFakeRenown(RENOWN_PORT);
+  if (installed) appFilesAtStart = appFiles();
 });
 after(async () => {
   await renown.close();
@@ -658,4 +667,8 @@ test("documents from before sign-in are offered, and move only on a yes", async 
   } finally {
     await app.stop();
   }
+});
+
+test("nothing anyone did is left in the app's own folder", { skip: !installed }, () => {
+  assert.deepEqual(appFiles(), appFilesAtStart);
 });

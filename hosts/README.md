@@ -130,6 +130,13 @@ PH_DESKTOP_LOCAL_PACKAGES=.ph/local-packages FEATURE_UNIFORM_RUNNERS_ENABLED=tru
 open hosts/desktop/tauri-shell/target/release/bundle/macos/Sektar.app
 ```
 
+On Windows the installer step can't open a path over 260 characters, and the
+stack's deepest files sit about 195 characters below `dist-stack`, so a checkout
+in a deep folder fails at `makensis` with `failed opening file`, after everything
+else has built. Map the shell folder to a drive, replace the folder with that
+drive in `target/release/nsis/x64/installer.nsi`, and run `makensis` on it there.
+Nothing else needs rebuilding. The paths fit once installed.
+
 Every tarball overrides its package throughout the stack, as the local and
 registry builds share a version number. Re-pack after rebuilding the
 monorepo's dists; the build refuses two tarballs of one package, so clear
