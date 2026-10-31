@@ -131,7 +131,7 @@ open hosts/desktop/tauri-shell/target/release/bundle/macos/Sektar.app
 ```
 
 On Windows the installer step can't open a path over 260 characters, and the
-stack's deepest files sit about 195 characters below `dist-stack`, so a checkout
+stack's deepest files sit about 208 characters below `dist-stack`, so a checkout
 in a deep folder fails at `makensis` with `failed opening file`, after everything
 else has built. Map the shell folder to a drive, replace the folder with that
 drive in `target/release/nsis/x64/installer.nsi`, and run `makensis` on it there.
