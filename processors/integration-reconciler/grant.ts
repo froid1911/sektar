@@ -115,6 +115,20 @@ export async function judgeGrant(
 
 type Check = typeof checkDelegationCredential;
 
+/**
+ * How a host learns of a statement's credential. Under RENOWN_SOURCE=kept, a
+ * local key's host, credentials are this host's alone: Renown has never held
+ * them and would call them withdrawn, however often they're approved again.
+ */
+export function credentialStatusOn(
+  renownSource: string | undefined,
+  watch: Pick<CredentialWatch, "status">,
+): JudgeGrantParams["credential"] {
+  return renownSource === "kept"
+    ? () => Promise.resolve("unknown")
+    : (claims) => watch.status(claims);
+}
+
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
