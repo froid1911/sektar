@@ -30,7 +30,7 @@ const ctx = {
   connectionId: "conn-1",
   accountLabel: null,
   reactorConnectionId: "reactor",
-  driveId: "calendar",
+  driveId: "calendar-drive",
 };
 const ids = () => {
   let n = 0;
@@ -88,7 +88,7 @@ describe("the live workflow (Google Calendar)", () => {
           reactorConnectionId: "reactor",
           config: expect.objectContaining({
             documentType: "sektar/calendar-event",
-            driveId: "calendar",
+            driveId: "calendar-drive",
           }) as unknown,
         }),
       ],

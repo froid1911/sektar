@@ -49,9 +49,8 @@ export interface ProviderAdapter {
    */
   expectedAccount?(state: IntegrationState): string | null;
   /**
-   * The slug of the drive it files documents into ("mail", "calendar"),
-   * resolved to the converted drive where the store has one
-   * (processors/drive-ids): no workflow is built while it is missing
+   * The slug of the drive it files documents into ("mail", "calendar"): no
+   * workflow is built while it is missing
    */
   drive?: "mail" | "calendar";
   /** Seconds between backfill slices; absent: no backfill */

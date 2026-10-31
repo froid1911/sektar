@@ -5,7 +5,6 @@
  * Upsert Documents into the Mail drive, keyed gmail:<id>, a folder per
  * account. The sign-in is the publisher's Google app with read-only mail.
  */
-import { pinnedDriveId } from "processors/drive-ids";
 import type { IntegrationState } from "document-models/integration";
 import { DISTYRA_PIECE, DISTYRA_PIECE_VERSION } from "../pieces.js";
 import type { StepSpec } from "../workflow-spec.js";
@@ -16,12 +15,10 @@ import type { ProviderAdapter, ProviderContext } from "./types.js";
 export const GMAIL_PIECE = "@activepieces/piece-gmail";
 export const GMAIL_PIECE_VERSION = "0.18.1";
 /**
- * The Mail drive: the converted drive pinned in processors/drive-ids/drive-ids.json where the
- * store has it, else the drive under the slug "mail" (hosts/switchboard). The
- * reconciler resolves it (io.drive) and files mail under the id it finds.
+ * The Mail drive, by the slug the host declares it under (hosts/switchboard).
+ * The reconciler resolves it (io.drive) and files mail under the id it finds.
  */
 export const MAIL_DRIVE_SLUG = "mail";
-export const MAIL_DRIVE_ID = pinnedDriveId(MAIL_DRIVE_SLUG) ?? MAIL_DRIVE_SLUG;
 export const EMAIL_TYPE = "sektar/email";
 
 const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];

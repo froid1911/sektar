@@ -17,42 +17,6 @@ import connect from "../connect/host.js";
 // the studio Connect attaches each one as a remote, being a remote client of it.
 const servedDrives = switchboard.reactor.drives ?? [];
 
-// COMPAT, remove once Sektar depends on a monorepo release with powerhouse
-// 39aff95981 (6.2.3-dev.81 or later): then move these ids onto the drive
-// declarations in hosts/switchboard/host.js and serve servedDrives as they are.
-//
-// The drives converted to reactor-drives (Mail on 2026-10-26, the others on
-// 2026-10-29) live under these ids (each one's slug is its id), so the studio
-// switchboard, which serves that store, pins them: seeding by slug alone would
-// find the legacy drive, which is no longer written. The
-// pins stay out of the shared switchboard host because a monorepo up to
-// 6.2.3-dev.80 cannot seed a fresh store with them (a legacy create may not
-// take a content-addressed id) and stops the server; later releases make the
-// drive anew under its slug instead.
-//
-// The same ids as processors/drive-ids/drive-ids.json (a host file imports
-// no other file; drive-ids.spec.ts checks the two agree).
-/** @type {Record<string, string>} */
-const CONVERTED_DRIVE_IDS = {
-  mail: "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
-  sektar: "5v9yD8F5MatCgOugIgNg47Qzg-JP5OEx618hVCqIqms",
-  calendar: "uRQ_DTyK0ydh0rY2WN2kl1ietHC_PSk1UZ15_5HCKvc",
-  files: "wpoqSWDrc0GNFL_BJd15L9R5rtvezJsH7mZFqGYSVA0",
-  trips: "ohSCDA562h5tE12uWVFMk3C_3sHEqF3vz69TAZ0ax0A",
-  integrations: "pL3TbPK1kE2qRC8DcqrW5-Ng2BYb0gAzjjOVfmEH3tk",
-  backfills: "bxyXzS9OEFouLyHF11E56xEed7asuaQA-QNLjUsQ_TU",
-};
-/** The address a served drive answers at: a converted drive's id, else its slug. */
-const driveAddress = (/** @type {string} */ slug) =>
-  CONVERTED_DRIVE_IDS[slug] ?? slug;
-// Declared as they exist: a converted drive's slug is its id. The switchboard
-// runner (6.2.3-dev.80) also waits for the first declared drive at
-// /d/<slug> before Connect starts, which only a converted drive's id answers.
-const studioDrives = servedDrives.map((d) => {
-  const id = CONVERTED_DRIVE_IDS[d.slug];
-  return id ? { ...d, id, slug: id } : d;
-});
-
 /** @satisfies {PHHost} */
 export default {
   name: "vetra",
@@ -71,21 +35,15 @@ export default {
           { module: "@powerhousedao/vetra-studio/switchboard", verbs: ["dev"] },
         ],
       },
-      // Every drive the switchboard host serves plus the studio drives,
-      // declared (projectHash keeps today's ids): the studio Connect is a
-      // pure remote client of this member (below), so the business drives
-      // have to live here.
+      // Every drive the switchboard host serves plus the studio drives: the
+      // studio Connect is a pure remote client of this member (below), so the
+      // business drives have to live here.
       reactor: {
         ...switchboard.reactor,
         drives: [
-          ...studioDrives,
-          {
-            slug: "vetra",
-            name: "Vetra",
-            projectHash: true,
-            preferredEditor: "vetra-drive-app",
-          },
-          { slug: "vetra-preview", name: "Vetra Preview", projectHash: true },
+          ...servedDrives,
+          { slug: "vetra", name: "Vetra", preferredEditor: "vetra-drive-app" },
+          { slug: "vetra-preview", name: "Vetra Preview" },
         ],
       },
     },
@@ -115,18 +73,17 @@ export default {
       // ${origin}: the page's own origin (see runner.proxy above). A remote
       // backend is named by one of the switchboard's drives (the GraphQL
       // endpoint names no drive): ${origin}/d/<the business drive> is the
-      // switchboard at ${origin}, its GraphQL at ${origin}/graphql. Converted
-      // drives answer at their ids (driveAddress): their slugs name nothing.
+      // switchboard at ${origin}, its GraphQL at ${origin}/graphql.
       reactor: {
         backends: {
           sb: {
             kind: "remote",
-            remote: { url: "${origin}/d/" + driveAddress("sektar") },
+            remote: { url: "${origin}/d/sektar" },
           },
         },
         drives: servedDrives.map((d) => ({
           slug: d.slug,
-          remote: { url: "${origin}/d/" + driveAddress(d.slug) },
+          remote: { url: "${origin}/d/" + d.slug },
         })),
       },
     },

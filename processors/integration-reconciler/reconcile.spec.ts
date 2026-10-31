@@ -182,7 +182,8 @@ function world(
     },
     newId: () => `id-${++n}`,
     findReactorConnection: () => Promise.resolve(reactorConnection),
-    drive: (slug: string) => Promise.resolve(slug === "mail" ? mailDrive : slug),
+    drive: (slug: string) =>
+      Promise.resolve(slug === "mail" ? mailDrive : `${slug}-drive`),
     readWorkflow: (id) => {
       const w = workflows.get(id);
       return Promise.resolve(w ? { ...w } : null);
@@ -341,7 +342,7 @@ describe("the live workflow", () => {
     )!;
     expect(upsert.input).toMatchObject({
       reactorConnectionId: "reactor-conn",
-      config: { documentType: "sektar/calendar-event", driveId: "calendar" },
+      config: { documentType: "sektar/calendar-event", driveId: "calendar-drive" },
     });
     expect(s.applied?.generation).toBe(s.intent.generation);
     expect(s.check?.issues).toEqual([]);

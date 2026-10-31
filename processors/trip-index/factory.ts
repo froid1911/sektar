@@ -5,14 +5,14 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsToAny } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import { TRIP_DOCUMENT_TYPE, TripIndex } from "./processor.js";
 
 export const tripIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
     // Only the drives it indexes: Trips.
-    if (!(await bindsToAny(module.read, driveHeader, ["trips"]))) return [];
+    if (!bindsToAny(driveHeader, ["trips"])) return [];
     // One index per drive, so two drives' trips stay apart.
     const namespace = TripIndex.getNamespace(driveHeader.id);
     const store =

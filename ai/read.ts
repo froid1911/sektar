@@ -1,4 +1,4 @@
-// How the assistant's tools read Sektar's indexes: the drive by its pinned id,
+// How the assistant's tools read Sektar's indexes: the drive by its slug,
 // the endpoint the screens use, the caller's own bearer (kit/index-gql.ts), and
 // answers trimmed to what fits. A failed read always throws: the agent feeds
 // the error to the model, and an empty list only ever means the index was read
@@ -8,7 +8,7 @@ import {
   currentIndexMode,
   indexGql,
 } from "../editors/sektar/kit/index-gql.js";
-import { findDrive } from "../processors/drive-ids/index.js";
+import { findDrive } from "../processors/drives/index.js";
 
 /** The drives the tools read, by slug, as the model is told about them. */
 export const DRIVE_LABEL = {

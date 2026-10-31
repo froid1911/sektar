@@ -13,7 +13,7 @@ import {
   useSyncNow,
   useTriggerStates,
 } from "../../../../editors/sektar/kit/use-sync.js";
-import { findDrive } from "../../../../processors/drive-ids/index.js";
+import { findDrive } from "../../../../processors/drives/index.js";
 
 /**
  * The top bar's sync status (design system: Patterns · Integrations · Sync
@@ -83,8 +83,7 @@ export function SyncStatus() {
     setOpen(false);
     void navigate({
       to: "/d/$driveSlug/{-$nodeSlug}",
-      // The converted Integrations drive where this store has it
-      params: { driveSlug: findDrive(drives, "integrations")?.header.id ?? "integrations" },
+      params: { driveSlug: "integrations" },
       hash: id ? `i/${id}` : undefined,
     }).then(() => {
       // The page follows the hash (useHashStep); a push does not announce it

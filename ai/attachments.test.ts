@@ -1245,20 +1245,6 @@ describe("sektarAddToFiles", () => {
     });
   });
 
-  it("goes in the pinned drive, over the legacy one", async () => {
-    const pinned = "wpoqSWDrc0GNFL_BJd15L9R5rtvezJsH7mZFqGYSVA0";
-    const world = reactor();
-    installStore(
-      { ...world.store, attachmentService: storage({}).service },
-      [
-        { header: { id: "legacy", slug: "files" } },
-        { header: { id: pinned, slug: pinned } },
-      ],
-    );
-    await call("sektarAddToFiles", { handle: handleOf(RECEIPT) });
-    expect(world.calls.created).toMatchObject([{ driveId: pinned }]);
-  });
-
   it("goes in the folder, under the name it is given", async () => {
     const world = reactor();
     const answer = await add(world, {

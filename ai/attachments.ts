@@ -619,7 +619,7 @@ export interface AddToFilesInput {
 }
 
 /**
- * Adds a file to Files in one approved call: the File document, in the pinned
+ * Adds a file to Files in one approved call: the File document, in the Files
  * drive, with the file as its source. An image from the chat is stored on the
  * way, under the new document, as a routing store wants it.
  */

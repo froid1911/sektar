@@ -5,7 +5,7 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsToAny } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import { KEYED_TYPES } from "./keys.js";
 import { KeyIndex } from "./processor.js";
 
@@ -13,7 +13,7 @@ export const keyIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
     // Only the drives it indexes: Mail and Calendar (the drives the upsert piece files keyed documents into).
-    if (!(await bindsToAny(module.read, driveHeader, ["mail", "calendar"]))) return [];
+    if (!bindsToAny(driveHeader, ["mail", "calendar"])) return [];
     // One index per drive: a lookup is always scoped to the drive a batch
     // writes into, and the namespace keeps two drives' keys apart.
     const namespace = KeyIndex.getNamespace(driveHeader.id);

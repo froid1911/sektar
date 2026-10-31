@@ -1,7 +1,7 @@
 // The File document, edited: its title and description, tags, the source of
 // truth (a stored file or another document), and the content extracted from
 // or rendered for it, beside a preview of whichever of those is picked.
-import { findDrive, supersededDrive } from "../../../processors/drive-ids/index.js";
+import { findDrive } from "../../../processors/drives/index.js";
 import {
   renameDriveNode,
   useAttachments,
@@ -844,8 +844,7 @@ function DocumentPicker({
   const drives = useMemo(
     () =>
       (allDrives ?? [])
-        // nor a legacy drive whose converted drive is here
-        .filter((d) => !/^(vetra|preview)/.test(d.header.slug) && !supersededDrive(allDrives, d))
+        .filter((d) => !/^(vetra|preview)/.test(d.header.slug))
         .map((d) => ({ id: d.header.id, slug: d.header.slug, name: d.header.name || d.state.global.name || d.header.slug })),
     [allDrives],
   );

@@ -5,14 +5,14 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { bindsToAny } from "processors/drive-ids";
+import { bindsToAny } from "processors/drives";
 import { FINANCE_DOCUMENT_TYPES, FinanceIndex } from "./processor.js";
 
 export const financeIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
     // Only the drives it indexes: the business drive.
-    if (!(await bindsToAny(module.read, driveHeader, ["sektar"]))) return [];
+    if (!bindsToAny(driveHeader, ["sektar"])) return [];
     // One index per drive: the books are read within their drive.
     const namespace = FinanceIndex.getNamespace(driveHeader.id);
     const store =
