@@ -18,7 +18,7 @@ import {
   useQueueRows,
   type QueueListRow,
 } from "../../../../editors/sektar/kit/integration-index.js";
-import { kindInfo } from "../../../../editors/sektar/kit/integrations.js";
+import { addHashFor, kindInfo } from "../../../../editors/sektar/kit/integrations.js";
 import {
   Badge,
   Card,
@@ -84,7 +84,7 @@ function SetupCard() {
                   void navigate({
                     to: "/d/$driveSlug/{-$nodeSlug}",
                     params: { driveSlug: drive.header.id },
-                    hash: "add",
+                    hash: addHashFor(kind),
                   })
                 }
               />
