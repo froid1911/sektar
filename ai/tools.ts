@@ -7,8 +7,8 @@
 // Every index tool goes through ai/read.ts: the caller's bearer, the endpoint
 // the screens use, a thrown error on a failed read, and trimmed answers. The
 // file tools go through ai/attachments.ts. All are read-only but
-// sektarSaveChatImage, sektarAttachToInvoice and sektarAddToFiles, which ask for
-// approval like any other write.
+// sektarSaveChatImage, sektarAttachToInvoice, sektarAddToFiles and
+// sektarMoveInFiles, which ask for approval like any other write.
 //
 // Stored files reach the model as handles (ai/handles.ts): no answer carries a
 // file reference, and no tool takes one.
@@ -27,6 +27,7 @@ import {
 import { CATEGORY_ORDER } from "../editors/sektar/kit/format.js";
 import { cardView } from "../editors/sektar/kit/integrations.js";
 import type { CalendarEventListRow } from "../processors/calendar-index/index.js";
+import { folderPaths } from "../processors/files-index/queries.js";
 import type { IntegrationListRow } from "../processors/integration-index/index.js";
 import {
   addToFiles,
@@ -40,6 +41,14 @@ import {
   type ReadAttachmentInput,
   type SaveChatImageInput,
 } from "./attachments.js";
+import {
+  FOLDERS_FIELD,
+  MAX_MOVED,
+  moveInFiles,
+  pathIn,
+  type MoveInFilesInput,
+  type TreeFolder,
+} from "./files.js";
 import { handleFor, isFileRef } from "./handles.js";
 import {
   clip,
@@ -794,10 +803,13 @@ const calendarEventsTool: PhAiToolDescriptor = {
 /* ---------------------------------------------------------------- files */
 
 const FILES_QUERY = `query ($d: String!, $f: String, $deep: Boolean, $q: String, $o: Int, $l: Int) {
-  filesIndex { listing(driveId: $d, folderId: $f, deep: $deep, query: $q, offset: $o, limit: $l) {
-    total
-    items { id kind name parentId documentType title description tags { label } sourceKind sourceMime sourceName sourceSize sourceDocumentName }
-  } }
+  filesIndex {
+    listing(driveId: $d, folderId: $f, deep: $deep, query: $q, offset: $o, limit: $l) {
+      total
+      items { id kind name parentId documentType title description tags { label } sourceKind sourceMime sourceName sourceSize sourceDocumentName }
+    }
+    ${FOLDERS_FIELD}
+  }
 }`;
 
 interface FileRow {
@@ -816,11 +828,20 @@ interface FileRow {
   sourceDocumentName: string | null;
 }
 
-function fileRow(row: FileRow) {
+interface FilesAnswer {
+  filesIndex: {
+    listing: { total: number; items: FileRow[] };
+    folders: { folders: TreeFolder[] };
+  };
+}
+
+function fileRow(row: FileRow, folders: ReadonlyMap<string, string>) {
   return compact({
     id: row.id,
     kind: row.kind,
     name: clip(row.name, 120),
+    // Whole, unlike the rest of the row: sektarMoveInFiles takes it back.
+    path: pathIn(folders, row),
     parentId: row.parentId,
     documentType: row.documentType,
     title: clip(row.title, 120),
@@ -834,10 +855,15 @@ function fileRow(row: FileRow) {
   });
 }
 
+function fileRows({ filesIndex }: FilesAnswer) {
+  const folders = folderPaths(filesIndex.folders.folders);
+  return filesIndex.listing.items.map((row) => fileRow(row, folders));
+}
+
 const findFilesTool: PhAiToolDescriptor = {
   name: "sektarFindFiles",
   description:
-    "Finds files in Sektar's Files drive, or lists a folder. With a query it searches every folder and returns documents; without one it lists the folder (the top level when no folder is given), folders first. Use it for whether a file exists and where it is. Rows have the name, title, description, tags and source, not the content: sektarListAttachments gives a file's handle and sektarReadAttachment shows it. The ids of its folder rows are what sektarAddToFiles takes as folderId.",
+    "Finds files and folders in Sektar's Files drive, or lists a folder. With a query it searches every folder and returns the folders and documents that match; without one it lists the folder (the top level when no folder is given), folders first. Use it for whether something exists and where it is: every row has its path. Rows have the name, title, description, tags and source, not the content: sektarListAttachments gives a file's handle and sektarReadAttachment shows it. The ids of its folder rows are what sektarAddToFiles takes as folderId, and its paths are what sektarMoveInFiles takes.",
   inputSchema: {
     query: wordsParam("names, titles, descriptions, tags and sources"),
     folderId: z
@@ -855,17 +881,14 @@ const findFilesTool: PhAiToolDescriptor = {
     offset?: number;
   }) => {
     const offset = args.offset ?? 0;
-    const data = await readIndex<{
-      filesIndex: { listing: { total: number; items: FileRow[] } };
-    }>("files", FILES_QUERY, {
+    const data = await readIndex<FilesAnswer>("files", FILES_QUERY, {
       f: args.folderId ?? null,
       deep: Boolean(args.query?.trim()),
       q: args.query ?? null,
       o: offset,
       l: args.limit ?? DEFAULT_LIMIT,
     });
-    const { items, total } = data.filesIndex.listing;
-    return listing("files", items.map(fileRow), total, {
+    return listing("files", fileRows(data), data.filesIndex.listing.total, {
       offset,
       query: args.query,
       beside: { driveId: driveIdOf("files") },
@@ -1013,6 +1036,28 @@ const addToFilesTool: PhAiToolDescriptor = {
   },
   annotations: { title: "Add to Files", ...WRITE },
   callback: (args: AddToFilesInput, context) => addToFiles(args, context),
+};
+
+const moveInFilesTool: PhAiToolDescriptor = {
+  name: "sektarMoveInFiles",
+  description:
+    "Moves files and folders within Sektar's Files, in one approved step; a folder takes everything in it along. It takes paths as sektarFindFiles gives them, so read them from there rather than build them. A name already taken in the folder gets a number, and the answer gives where each one ended up. If something could not be moved the call fails and says why: then say it failed, not that it is done.",
+  inputSchema: {
+    paths: z
+      .array(z.string())
+      .min(1)
+      .max(MAX_MOVED)
+      .describe(
+        "What to move: each file's or folder's path, exactly as a row of sektarFindFiles has it.",
+      ),
+    to: z
+      .string()
+      .describe(
+        "The path of the folder it goes in, exactly as a folder row has it; an empty string for the top level.",
+      ),
+  },
+  annotations: { title: "Move in Files", ...WRITE },
+  callback: (args: MoveInFilesInput, context) => moveInFiles(args, context),
 };
 
 /* ---------------------------------------------------------------- trips */
@@ -1372,10 +1417,13 @@ async function searchMail(query: string) {
 }
 
 async function searchFiles(query: string) {
-  const data = await readIndex<{
-    filesIndex: { listing: { items: FileRow[] } };
-  }>("files", FILES_QUERY, { deep: true, q: query, l: SEARCH_HITS });
-  return data.filesIndex.listing.items.map(fileRow);
+  return fileRows(
+    await readIndex<FilesAnswer>("files", FILES_QUERY, {
+      deep: true,
+      q: query,
+      l: SEARCH_HITS,
+    }),
+  );
 }
 
 const SEARCH_TRIPS_QUERY = `query ($d: String!, $q: String, $l: Int, $n: String) {
@@ -1455,6 +1503,7 @@ export const aiTools: PhAiToolDescriptor[] = [
   saveChatImageTool,
   attachToInvoiceTool,
   addToFilesTool,
+  moveInFilesTool,
   findTripsTool,
   integrationStatusTool,
   searchTool,

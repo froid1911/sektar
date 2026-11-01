@@ -177,6 +177,10 @@ const fileEntry = (i: number, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const tree = (
+  ...folders: { id: string; name: string; parentId: string | null }[]
+) => ({ folders });
+
 const trip = (i: number, over: Record<string, unknown> = {}) => ({
   id: `trip-${i}`,
   title: "Ghent client visit",
@@ -438,6 +442,7 @@ const LISTS: {
             fileEntry(i, { name: LONG, description: LONG, title: LONG }),
           ),
         ),
+        folders: tree(),
       },
     }),
   },
@@ -474,13 +479,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** They go through the stored files, not an index: see attachments.test.ts. */
+/** They are tested on their own: see attachments.test.ts and files.test.ts. */
 const ATTACHMENT_TOOLS = [
   "sektarListAttachments",
   "sektarReadAttachment",
   "sektarSaveChatImage",
   "sektarAttachToInvoice",
   "sektarAddToFiles",
+  "sektarMoveInFiles",
 ];
 
 describe("the tool set", () => {
@@ -504,6 +510,7 @@ describe("the tool set", () => {
       "sektarSaveChatImage",
       "sektarAttachToInvoice",
       "sektarAddToFiles",
+      "sektarMoveInFiles",
     ]);
   });
 
@@ -968,7 +975,9 @@ describe("sektarCalendarEvents", () => {
 });
 
 describe("sektarFindFiles", () => {
-  const root = { filesIndex: { listing: page([fileEntry(1)]) } };
+  const root = {
+    filesIndex: { listing: page([fileEntry(1)]), folders: tree() },
+  };
 
   it("searches every folder with a query", async () => {
     const calls = serve(root);
@@ -985,6 +994,38 @@ describe("sektarFindFiles", () => {
     });
   });
 
+  it("gives every row its path, whole, a folder's as well", async () => {
+    const long = "2026-Q4 ".repeat(30).trim();
+    serve({
+      filesIndex: {
+        listing: page([
+          fileEntry(0, {
+            id: "folder-2",
+            kind: "folder",
+            name: "heroku",
+            parentId: "folder-1",
+            documentType: null,
+            tags: [],
+          }),
+          fileEntry(1, { parentId: "folder-2", name: "a.pdf" }),
+          fileEntry(2, { parentId: null, name: "b.pdf" }),
+          fileEntry(3, { parentId: "not-shown", name: "c.pdf" }),
+        ]),
+        folders: tree(
+          { id: "folder-1", name: long, parentId: null },
+          { id: "folder-2", name: "heroku", parentId: "folder-1" },
+        ),
+      },
+    });
+    const result = await call("sektarFindFiles", { query: "heroku" });
+    expect(result.items).toMatchObject([
+      { kind: "folder", path: `${long}/heroku` },
+      { path: `${long}/heroku/a.pdf` },
+      { path: "b.pdf" },
+      { id: "file-3" },
+    ]);
+    expect((result.items as object[])[3]).not.toHaveProperty("path");
+  });
 });
 
 describe("sektarFindTrips", () => {
@@ -1126,7 +1167,7 @@ describe("sektarSearch", () => {
         mailPage(view === "INBOX" ? [message(1)] : []),
       accounts: [],
     },
-    filesIndex: { listing: page([fileEntry(1)]) },
+    filesIndex: { listing: page([fileEntry(1)]), folders: tree() },
     tripIndex: { trips: page([trip(1)]) },
     ...over,
   });
@@ -1169,7 +1210,7 @@ describe("sektarSearch", () => {
     serve({
       searchIndex: { search: [] },
       emailIndex: { messages: mailPage([]), accounts: [] },
-      filesIndex: { listing: page([]) },
+      filesIndex: { listing: page([]), folders: tree() },
       tripIndex: { trips: page([]) },
     });
     expect(await call("sektarSearch", { query: "nothing" })).toEqual({
@@ -1255,6 +1296,7 @@ describe("a file reference", () => {
     calendarIndex: { events: [event(1)], calendars: [] },
     filesIndex: {
       listing: page([fileEntry(1, { thumbRef: STORED })]),
+      folders: tree({ id: "folder-1", name: "Contracts", parentId: null }),
       syncMappings: [],
     },
     tripIndex: { trips: page([trip(1)]), years: [], places: [] },
@@ -1310,6 +1352,7 @@ describe("a file reference", () => {
       sektarSaveChatImage: { handle: "image-1" },
       sektarAttachToInvoice: { handle, invoiceId, role: "SUPPORTING" },
       sektarAddToFiles: { handle },
+      sektarMoveInFiles: { paths: ["Contracts/Contract 1.pdf"], to: "Contracts" },
     }) as Record<string, unknown>;
 
   const listed = async (invoiceId: string) => {

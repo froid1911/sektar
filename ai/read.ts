@@ -33,7 +33,7 @@ export const RESULT_BUDGET = 10_000;
 
 const UNKNOWN = "Treat the answer as unknown.";
 
-function messageOf(error: unknown): string {
+export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
