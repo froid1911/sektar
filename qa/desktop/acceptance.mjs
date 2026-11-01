@@ -254,6 +254,21 @@ const canOpen = (page, id) =>
     id,
   );
 
+/** A GraphQL request as whoever is signed in to the window. */
+const asSignedIn = (page, query, variables = {}) =>
+  page.evaluate(
+    async ([url, query, variables]) => {
+      const authorization = `Bearer ${await window.ph.renown.getBearerToken({ expiresIn: 60 })}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization },
+        body: JSON.stringify({ query, variables }),
+      });
+      return { status: response.status, ...(await response.json()) };
+    },
+    [`http://127.0.0.1:${SWITCHBOARD_PORT}/graphql`, query, variables],
+  );
+
 /** The switchboard answers strangers with a refusal. */
 async function anonymousStatus() {
   const response = await fetch(`http://127.0.0.1:${SWITCHBOARD_PORT}/graphql`, {
@@ -666,6 +681,96 @@ test("the packaged app loads Sektar's own pieces and document models", { skip: !
     assert.doesNotMatch(logText(), /no importable document-models entry/);
     assert.doesNotMatch(logText(), /is not available; runs/);
     assert.match(logText(), /Loaded \d+ piece\(s\) from package .*stack: .*distyra/);
+
+    // A store that can't find its worker script runs on the main thread, with
+    // only a warning, and a bundle moves that script.
+    assert.match(logText(), /reactor-storage: PGlite \(PG\d+\) in a worker thread/);
+    assert.match(logText(), /read-storage: PGlite \(PG\d+\) in a worker thread/);
+    assert.doesNotMatch(logText(), /PGlite runs in the main thread/);
+
+    // A piece runs in a process of its own, found by path.
+    const catalog = await asSignedIn(app.page, "{ workflowRuntime { pieceCatalog } }");
+    assert.equal(catalog.status, 200, JSON.stringify(catalog.errors));
+    const distyra = catalog.data.workflowRuntime.pieceCatalog.find((piece) =>
+      piece.name.includes("distyra"),
+    );
+    assert.ok(distyra, "Sektar's piece isn't in the catalog");
+    const actions = await asSignedIn(
+      app.page,
+      `query ($packageName: String!) { workflowRuntime { pieceActions(packageName: $packageName) } }`,
+      { packageName: distyra.name },
+    );
+    const [action] = actions.data.workflowRuntime.pieceActions.actions;
+    assert.ok(action?.name, "the piece has no actions");
+    const { data, errors } = await asSignedIn(
+      app.page,
+      `query ($block: BlockInput!) { workflowRuntime { blockDescriptor(block: $block) } }`,
+      {
+        block: {
+          pieceName: distyra.name,
+          pieceVersion: distyra.version,
+          name: action.name,
+          kind: "action",
+        },
+      },
+    );
+    assert.equal(errors, undefined, JSON.stringify(errors));
+    assert.ok(data.workflowRuntime.blockDescriptor, "the piece's worker described nothing");
+
+    // Links to attachments are signed. Without a secret this says 503.
+    const target = await fetch(
+      `http://127.0.0.1:${SWITCHBOARD_PORT}/attachments/${"0".repeat(64)}/download-target`,
+    );
+    assert.notEqual(target.status, 503);
+  } finally {
+    await app.stop();
+  }
+});
+
+// A published add-on, from before a host's build left out what only a browser runs.
+const ADD_ON = "@acaldas/todo-list-test";
+const REGISTRY = "https://registry.dev.vetra.io";
+const registryAnswers = async () => {
+  try {
+    return (await fetch(`${REGISTRY}/packages`, { signal: AbortSignal.timeout(8_000) })).ok;
+  } catch {
+    return false;
+  }
+};
+
+test("an add-on installs from the registry and its documents open", { skip: !packaged }, async (t) => {
+  if (!(await registryAnswers())) return t.skip("the registry isn't answering");
+  await clearWindow();
+  const root = scratchRoot("add-on");
+  writeSettings(root);
+  const app = await launch(root);
+  try {
+    await signInPage(app.page);
+    await createLocalKey(app.page);
+    await connectIsOpen(app.page);
+    const { data, errors } = await asSignedIn(
+      app.page,
+      `mutation ($name: String!) {
+        Packages { installPackage(name: $name) {
+          documentModelsLoaded
+          package { name documentTypes }
+        } }
+      }`,
+      { name: ADD_ON },
+    );
+    assert.equal(errors, undefined, JSON.stringify(errors));
+    const installed = data.Packages.installPackage;
+    assert.equal(installed.package.name, ADD_ON);
+    assert.ok(installed.documentModelsLoaded > 0, JSON.stringify(installed));
+    assert.ok(installed.package.documentTypes.includes("acaldas/todo-list"));
+
+    // Its model runs on the same document-model as everything else.
+    const created = await asSignedIn(
+      app.page,
+      `mutation { createEmptyDocument(documentType: "acaldas/todo-list") { id documentType } }`,
+    );
+    assert.equal(created.errors, undefined, JSON.stringify(created.errors));
+    assert.equal(created.data.createEmptyDocument.documentType, "acaldas/todo-list");
   } finally {
     await app.stop();
   }
