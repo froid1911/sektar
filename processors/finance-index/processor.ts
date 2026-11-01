@@ -16,7 +16,7 @@
  * are deleted, new or changed ones written, unchanged ones left alone, so a
  * categorisation rewrites one row, not the account's ten thousand.
  */
-import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor } from "@powerhousedao/shared/processors";
 import type { OperationWithContext } from "document-model";
 import { statelessWarning } from "../stateless-warning.js";
 import { up } from "./migrations.js";

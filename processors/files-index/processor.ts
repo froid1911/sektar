@@ -24,7 +24,7 @@
  * come from any such document, and a listing joins them to this drive's
  * nodes.
  */
-import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor } from "@powerhousedao/shared/processors";
 import type { OperationWithContext } from "document-model";
 import { up } from "./migrations.js";
 import { DriveTree, fileDocRow, globalOf, headerNameOf, nodeRows, sameNode, syncMappingRow } from "./rows.js";

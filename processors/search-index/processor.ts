@@ -1,4 +1,4 @@
-import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor } from "@powerhousedao/shared/processors";
 import type { OperationWithContext } from "document-model";
 import { applyAction, rowsFromState } from "./index-rows.js";
 import { up } from "./migrations.js";

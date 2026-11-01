@@ -13,7 +13,7 @@
  * own rules is a read model that disagrees with the documents it describes.
  */
 import type { IReactorClient } from "@powerhousedao/reactor";
-import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor } from "@powerhousedao/shared/processors";
 import type { OperationWithContext } from "document-model";
 import {
   identifiersOf,

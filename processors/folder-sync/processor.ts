@@ -4,8 +4,8 @@
 // changed. It acts on a mapping's current state, never on a single
 // operation, so a replay of old operations cannot start a run twice.
 import type { IDriveWriteClient, IReactorReadClient } from "@powerhousedao/reactor";
-import { RelationalDbProcessor, type IProcessorHostModule } from "@powerhousedao/reactor-browser";
-import type { IProcessorDispatch } from "@powerhousedao/shared/processors";
+import type { IProcessorHostModule } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor, type IProcessorDispatch } from "@powerhousedao/shared/processors";
 import type { Action, OperationWithContext } from "document-model";
 import { utils as fileUtils } from "document-models/file";
 import { actions, type FolderSyncState } from "document-models/folder-sync";
