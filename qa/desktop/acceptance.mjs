@@ -680,7 +680,7 @@ test("the packaged app loads Sektar's own pieces and document models", { skip: !
     assert.doesNotMatch(logText(), /has no version in/);
     assert.doesNotMatch(logText(), /no importable document-models entry/);
     assert.doesNotMatch(logText(), /is not available; runs/);
-    assert.match(logText(), /Loaded \d+ piece\(s\) from package .*stack: .*distyra/);
+    assert.match(logText(), /Loaded \d+ piece\(s\) from package .*: .*distyra/);
 
     // A store that can't find its worker script runs on the main thread, with
     // only a warning, and a bundle moves that script.
