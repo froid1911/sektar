@@ -19,6 +19,7 @@ import {
   foldersQuery,
   listingCountQuery,
   listingQuery,
+  listsFilesOnly,
   scopeFor,
   searchWords,
   syncMappingsQuery,
@@ -51,10 +52,11 @@ async function listing({
   // A deep listing below a folder needs its descendants; the folders are
   // a small table, read once per request.
   const folders = deep && folderId ? await foldersQuery(db).execute() : [];
+  const words = searchWords(args.query);
   const filter = {
     scope: scopeFor(folders, folderId, deep),
-    filesOnly: deep,
-    words: searchWords(args.query),
+    filesOnly: listsFilesOnly(deep, words),
+    words,
   };
   const limit = Math.min(Math.max(args.limit ?? FILES_PAGE, 1), FILES_PAGE_MAX);
   const offset = Math.max(0, Math.floor(args.offset ?? 0));

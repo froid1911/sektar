@@ -27,6 +27,7 @@ import {
   folderTreeQuery,
   foldFolderTree,
   listingQuery,
+  listsFilesOnly,
   syncMappingsQuery,
   toSyncMapping,
 } from "./queries.js";
@@ -308,6 +309,22 @@ describe("the processor on a reactor-drive", () => {
     ]);
     const listed = await listingQuery(db, { scope: { parents: ["f1"], root: false }, filesOnly: false, words: ["receipt"] }, { offset: 0, limit: 10 }).execute();
     expect(listed.map((r) => [r.id, r.title])).toEqual([["d2", "Receipt"]]);
+  });
+
+  it("finds a folder in a search of every folder, and lists none without a search", async () => {
+    const deep = async (words: string[]) =>
+      (
+        await listingQuery(
+          db,
+          { scope: { all: true }, filesOnly: listsFilesOnly(true, words), words },
+          { offset: 0, limit: 10 },
+        ).execute()
+      ).map((r) => r.id);
+    expect(await deep(["factu"])).toEqual(["f1"]);
+    expect(await deep(["receipt"])).toEqual(["d2"]);
+    expect(await deep([])).toEqual(["d1", "d2"]);
+    // The folder syncs' own folder stays out of a search as out of a listing.
+    expect(await deep(["sync"])).toEqual([]);
   });
 
   it("follows a rename, a move and a removal", async () => {

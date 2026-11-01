@@ -22,10 +22,18 @@ export type FilesScope =
 
 export interface FilesFilter {
   scope: FilesScope;
-  /** Leave folders out: a listing that includes subfolders lists documents only. */
+  /** Leave folders out: see {@link listsFilesOnly}. */
   filesOnly: boolean;
   /** Lower-cased words, each matched against the name and the File's search text. */
   words: readonly string[];
+}
+
+/**
+ * A listing that includes subfolders lists documents only, or every folder
+ * would sit among them. A search does not: a folder can be what was asked for.
+ */
+export function listsFilesOnly(deep: boolean, words: readonly string[]): boolean {
+  return deep && words.length === 0;
 }
 
 export const FILES_PAGE = 60;

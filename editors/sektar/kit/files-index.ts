@@ -19,6 +19,7 @@ import {
   foldFolderTree,
   listingCountQuery,
   listingQuery,
+  listsFilesOnly,
   scopeFor,
   searchWords,
   syncMappingsQuery,
@@ -42,7 +43,7 @@ export { folderPaths } from "../../../processors/files-index/index.js";
 export interface FilesListFilter {
   /** The open folder; null at the drive's root. */
   folderId: string | null;
-  /** The folder and every folder below it, documents only. */
+  /** The folder and every folder below it, documents only unless searching. */
   deep: boolean;
   /** The top bar's search, raw. */
   query: string;
@@ -106,19 +107,19 @@ function useLocalFiles(
   const [range, setRange] = useState({ key, offset: 0 });
   const offset = range.key === key ? range.offset : 0;
   const limit = enabled ? FILES_PAGE * 3 : 1;
-  const params = useMemo<LocalParams>(
-    () => ({
+  const params = useMemo<LocalParams>(() => {
+    const words = searchWords(filter.query);
+    return {
       filter: {
         scope: scopeFor(folders, filter.folderId, filter.deep),
-        filesOnly: filter.deep,
-        words: searchWords(filter.query),
+        filesOnly: listsFilesOnly(filter.deep, words),
+        words,
       },
       offset,
       limit,
       syncFirst,
-    }),
-    [folders, filter.folderId, filter.deep, filter.query, offset, limit, syncFirst],
-  );
+    };
+  }, [folders, filter.folderId, filter.deep, filter.query, offset, limit, syncFirst]);
   const build = useCallback(
     (db: LocalQB, p?: LocalParams) => {
       const q = p ?? params;
