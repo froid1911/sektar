@@ -86,6 +86,12 @@ person's and it can be handed to the next identity. Signing in needs
 `window.phDesktop.openExternal` from the shell; without it Connect keeps
 Renown's redirect.
 
+Quitting and changing identity stop the stack rather than kill it, so its stores
+close and the next start has nothing to recover. Windows has no SIGTERM, so the
+shell sets `PH_STOP_ON_STDIN=1` and writes a line to the stack's stdin, then ends
+the stack's job if it hasn't gone after 10 seconds. Stdin closing does the same,
+which is what happens if the shell crashes.
+
 ### Reactor-client topologies (what runs the reactor, and where)
 
 The `reactor.backends` of a Connect host select which of four clients it
