@@ -111,6 +111,43 @@ async function clearWindow() {
   }, "the window's data to be released");
 }
 
+/** How postgres left a store, from its own control file. */
+function storeState(folder, store) {
+  const control = path.join(folder, ".ph", store, "global", "pg_control");
+  const state = fs.readFileSync(control).readUInt32LE(16);
+  return { 1: "shut down", 6: "in production" }[state] ?? `state ${state}`;
+}
+
+const storesLeftBy = (folder) => [
+  storeState(folder, "reactor-storage"),
+  storeState(folder, "read-storage"),
+];
+
+/** Workflow leases still in a stack's stores, once it has stopped. */
+async function workflowLeases(folder) {
+  const api = fs.realpathSync(path.join(project, "node_modules/@powerhousedao/reactor-api"));
+  const pglite = createRequire(path.join(api, "package.json")).resolve("@electric-sql/pglite");
+  const { PGlite } = await import(pathToFileURL(pglite).href);
+  let tables = 0;
+  let leases = 0;
+  for (const store of ["reactor-storage", "read-storage"]) {
+    const db = new PGlite(path.join(folder, ".ph", store));
+    const { rows } = await db.query(
+      `select n.nspname as schema from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       where c.relname = 'workflow_singleton'`,
+    );
+    for (const { schema } of rows) {
+      tables++;
+      const count = await db.query(`select count(*)::int as n from "${schema}".workflow_singleton`);
+      leases += count.rows[0].n;
+    }
+    await db.close();
+  }
+  assert.ok(tables > 0, "no lease table: this checked nothing");
+  return leases;
+}
+
 function logText() {
   const file = path.join(LOCAL_DATA, "logs", "ph-win.log");
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
@@ -134,6 +171,7 @@ async function launch(root, env = {}) {
     },
     stdio: "ignore",
   });
+  const exited = new Promise((resolve) => app.once("exit", resolve));
   await until(() => isListening(DEBUG_PORT), "the window's debugging port");
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${DEBUG_PORT}`);
   const page = await until(
@@ -143,6 +181,19 @@ async function launch(root, env = {}) {
   return {
     browser,
     page,
+    exited,
+    /** As clicking the window's X, which Windows sends as a message. */
+    closeWindow() {
+      spawnSync("powershell", [
+        "-NoProfile",
+        "-Command",
+        `(Get-Process -Id ${app.pid}).CloseMainWindow()`,
+      ]);
+    },
+    /** The app alone, as a crash would: what it started stays behind. */
+    die() {
+      spawnSync("taskkill", ["/PID", String(app.pid), "/F"]);
+    },
     async stop() {
       await browser.close().catch(() => {});
       spawnSync("taskkill", ["/PID", String(app.pid), "/T", "/F"]);
@@ -352,6 +403,11 @@ test("Renown identities each get their own folder, and can be switched", async (
     await app.page.waitForSelector("#renown", { timeout: 60_000 });
     assert.equal(await isListening(SWITCHBOARD_PORT), false);
 
+    // Nothing of the first identity's is left open for the next one's start.
+    const firstFolder = path.join(root, address(first));
+    assert.deepEqual(storesLeftBy(firstFolder), ["shut down", "shut down"]);
+    assert.equal(await workflowLeases(firstFolder), 0);
+
     await signInWithRenown(app.page, renown, second);
     await connectIsOpen(app.page);
     assert.ok(fs.existsSync(path.join(root, address(second), ".ph/reactor-storage")));
@@ -497,8 +553,9 @@ test("starting again right after being killed keeps the assistant", async () => 
       () => logText().includes("Workflow runtime started"),
       "the automations to start",
     );
-    // Quitting from the tray stops the stack this hard too.
+    // As a crash would, stores open and the lease still held.
     await app.stop();
+    assert.deepEqual(storesLeftBy(path.join(root, "local")), ["in production", "in production"]);
 
     app = await launch(root);
     await signInPage(app.page);
@@ -513,6 +570,74 @@ test("starting again right after being killed keeps the assistant", async () => 
     assert.doesNotMatch(
       await app.page.textContent("body"),
       /assistant is not available/,
+    );
+  } finally {
+    await app.stop();
+  }
+});
+
+test("quitting closes the stores, and says so meanwhile", async () => {
+  await clearWindow();
+  const root = scratchRoot("quit");
+  writeSettings(root, { window: { closeQuits: true } });
+  const app = await launch(root);
+  try {
+    await signInPage(app.page);
+    await createLocalKey(app.page);
+    await connectIsOpen(app.page);
+    await until(
+      () => logText().includes("Workflow runtime started"),
+      "the automations to start",
+    );
+
+    const shown = [];
+    await app.page.exposeBinding("phShown", (_, text) => shown.push(text));
+    await app.page.evaluate(() =>
+      new MutationObserver((changes) => {
+        for (const { addedNodes } of changes) {
+          for (const node of addedNodes) {
+            if (node.getAttribute?.("role") === "status") window.phShown(node.textContent);
+          }
+        }
+      }).observe(document.body, { childList: true }),
+    );
+    app.closeWindow();
+    await app.exited;
+
+    assert.deepEqual(shown, ["Closing Sektar…"]);
+    assert.match(logText(), /stack stopped after \d+ ms/);
+    assert.equal(await isListening(CONNECT_PORT), false);
+    assert.equal(await isListening(SWITCHBOARD_PORT), false);
+    const folder = path.join(root, "local");
+    assert.deepEqual(storesLeftBy(folder), ["shut down", "shut down"]);
+    assert.equal(await workflowLeases(folder), 0);
+  } finally {
+    await app.stop();
+  }
+});
+
+test("if the app dies, the stack closes its own stores", async () => {
+  await clearWindow();
+  const root = scratchRoot("orphan");
+  writeSettings(root);
+  const app = await launch(root);
+  try {
+    await signInPage(app.page);
+    await createLocalKey(app.page);
+    await connectIsOpen(app.page);
+    app.die();
+    await app.exited;
+    await until(
+      async () =>
+        !(await isListening(CONNECT_PORT)) && !(await isListening(SWITCHBOARD_PORT)),
+      "the stack to stop by itself",
+      30_000,
+    );
+    const folder = path.join(root, "local");
+    await until(
+      () => storesLeftBy(folder).every((state) => state === "shut down"),
+      "the stores to close",
+      30_000,
     );
   } finally {
     await app.stop();
