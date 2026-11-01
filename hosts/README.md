@@ -117,9 +117,11 @@ switchboard member serves the same drives plus the studio ones.
 
 ### Building Sektar.app against a local monorepo checkout
 
-`ph run desktop build` vendors ph-cli and its runtime into the app's stack
-from the npm registry. Until the code these hosts need is released, vendor
-it from a monorepo checkout instead: pack it, then point the build at the
+`ph run desktop build` vendors ph-run and its runtime into the app's stack
+from the npm registry. ph-run is `ph run` without the tools that build, and
+the host files keep naming ph-cli's runners: where ph-cli isn't installed, they
+resolve to ph-run's. Until the code these hosts need is released, vendor it
+from a monorepo checkout instead: pack it, then point the build at the
 tarballs with `PH_DESKTOP_LOCAL_PACKAGES` (an env var, so no machine path
 lands in a host file; a relative path resolves against this project).
 
@@ -127,7 +129,7 @@ lands in a host file; a relative path resolves against this project).
 # from this project's root; MONOREPO is the linked checkout (README.md,
 # "Local monorepo link"), its dists built
 MONOREPO="${POWERHOUSE_DIR:-../powerhouse}"
-# 1. pack ph-cli, host-core and every workspace package they depend on
+# 1. pack ph-run, host-core and every workspace package they depend on
 rm -rf .ph/local-packages
 pnpm -C "$MONOREPO" pack:desktop-stack --pack-destination "$PWD/.ph/local-packages"
 # 2. build members, stage the stack, produce Sektar.app (+ .dmg) and launch it
@@ -142,6 +144,12 @@ in a deep folder fails at `makensis` with `failed opening file`, after everythin
 else has built. Map the shell folder to a drive, replace the folder with that
 drive in `target/release/nsis/x64/installer.nsi`, and run `makensis` on it there.
 Nothing else needs rebuilding. The paths fit once installed.
+
+`PH_DESKTOP_BUNDLE_BACKEND=1`, or `bundleBackend: true` on the desktop runner,
+folds the vendored stack with Rolldown after staging it, for a stack of a few
+thousand files that installs in a fraction of the time. It's off until an
+installed build has proven it. To try a staged stack in the real app without
+building an installer, run the acceptance suite with `SEKTAR_STACK` set to it.
 
 Every tarball overrides its package throughout the stack, as the local and
 registry builds share a version number. Re-pack after rebuilding the
