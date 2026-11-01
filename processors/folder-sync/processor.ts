@@ -32,6 +32,8 @@ export const FILE_TYPE = "sektar/file";
 const CHANGE_QUIET_MS = 5_000;
 /** ...and never later than this after the first change of a burst. */
 const CHANGE_MAX_WAIT_MS = 60_000;
+/** The debouncer's key for the look at the tree that a change waits for. */
+const TREE_LOOK = "tree-look";
 /** Disk events this soon after a run are the run's own (late) writes. */
 const RUN_ECHO_MS = 3_000;
 /** Files on disk a run writes for itself, whose changes start nothing. */
@@ -109,6 +111,8 @@ export class FolderSync extends RelationalDbProcessor<DB> {
   private readonly again = new Set<string>();
   /** The drive's tree as last seen: a node moved out of a mapped folder is found there */
   private lastNodes: ScopeNode[] | null = null;
+  /** Nodes changed since the tree was last looked at */
+  private readonly unseenChanges = new Set<string>();
   /** Operations from well before this are a replay after a restart, not changes */
   private readonly startedAt = Date.now();
   private sweepTimer: ReturnType<typeof setTimeout> | undefined;
@@ -129,10 +133,19 @@ export class FolderSync extends RelationalDbProcessor<DB> {
       if (context.scope === "global" && context.documentType === SYNC_TYPE) mappings.add(context.documentId);
     }
     const changed = changedNodes(operations, this.driveId, { file: FILE_TYPE, drive: DRIVE_TYPE, reactorDrive: REACTOR_DRIVE_TYPE }, this.startedAt);
-    return this.enqueue(async () => {
-      for (const id of mappings) await this.consider(id);
-      if (changed.size > 0) await this.scheduleOnChange(changed);
-    });
+    for (const id of changed) this.unseenChanges.add(id);
+    // Which mappings a change concerns takes the whole tree: many seconds on a
+    // large drive, and writes and reads wait behind this handler. So it comes
+    // later, once for a burst of changes, and nothing here is awaited.
+    if (this.unseenChanges.size > 0 && !this.disconnected) {
+      this.changes.touch(TREE_LOOK, () => void this.enqueue(() => this.lookAtChanges()));
+    }
+    if (mappings.size > 0) {
+      void this.enqueue(async () => {
+        for (const id of mappings) await this.consider(id);
+      });
+    }
+    return Promise.resolve();
   }
 
   onDisconnect(): Promise<void> {
@@ -173,6 +186,12 @@ export class FolderSync extends RelationalDbProcessor<DB> {
 
   private async sweep(): Promise<void> {
     for (const id of await this.mappingsInDrive()) await this.consider(id);
+  }
+
+  private async lookAtChanges(): Promise<void> {
+    const changed = new Set(this.unseenChanges);
+    this.unseenChanges.clear();
+    if (changed.size > 0) await this.scheduleOnChange(changed);
   }
 
   /** Schedules the automatic mappings whose folder the changed nodes are in, before or after the change. */
