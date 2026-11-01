@@ -12,7 +12,7 @@
  * is replaced wholesale, so a batch that holds a document twice (a replay
  * holds one entry per past operation) writes the same row twice.
  */
-import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor } from "@powerhousedao/shared/processors";
 import type { OperationWithContext } from "document-model";
 import { up } from "./migrations.js";
 import { applyAction, emptyRow, parseState, rowFromState } from "./rows.js";

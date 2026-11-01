@@ -8,7 +8,7 @@
  * replaced wholesale, so a replay that holds a document many times writes
  * the last state.
  */
-import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor } from "@powerhousedao/shared/processors";
 import type { OperationWithContext } from "document-model";
 import { up } from "./migrations.js";
 import {

@@ -11,7 +11,7 @@
  * repeated operation inserts nothing new. A document that is deleted loses
  * its rows, so a lookup never points at a tombstone.
  */
-import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
+import { RelationalDbProcessor } from "@powerhousedao/shared/processors";
 import type { OperationWithContext } from "document-model";
 import { KEYED_TYPES, valueAt, type KeyedType } from "./keys.js";
 import { up } from "./migrations.js";
