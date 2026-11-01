@@ -5,7 +5,8 @@
 //   node --test qa/desktop/acceptance.mjs
 //
 // SEKTAR_EXE picks the app: an installed one, or by default the debug build from
-// `ph run desktop dev`, which runs the stack from this checkout. Every test runs
+// `ph run desktop dev`, which runs the stack from this checkout, or from a staged
+// stack in SEKTAR_STACK, which tries one without compiling an app. Every test runs
 // on its own scratch root through PH_DESKTOP_ROOT, so nothing here can reach the
 // real store in .ph. Resolves Playwright and ethers from the sibling checkouts,
 // so this project takes on no test dependencies for it.
@@ -47,14 +48,18 @@ const OLD_DATA = path.join(process.env.APPDATA, `${IDENTIFIER}.bak-20261031`, ".
 const installed = process.env.SEKTAR_EXE;
 const exe =
   installed ?? path.join(project, "hosts/desktop/tauri-shell/target/debug/sektar.exe");
+const stagedStack = process.env.SEKTAR_STACK;
+const packaged = installed ?? stagedStack;
 const stackEnv = installed
   ? {}
   : {
-      PH_RUN_PROJECT: project,
-      PH_RUN_CLI: path.join(
-        fs.realpathSync(path.join(project, "node_modules/@powerhousedao/ph-cli")),
-        "dist/cli.mjs",
-      ),
+      PH_RUN_PROJECT: stagedStack ?? project,
+      PH_RUN_CLI: stagedStack
+        ? path.join(stagedStack, "node_modules/@powerhousedao/ph-run/dist/cli.mjs")
+        : path.join(
+            fs.realpathSync(path.join(project, "node_modules/@powerhousedao/ph-cli")),
+            "dist/cli.mjs",
+          ),
       PH_WIN_CONNECT_PORT: String(CONNECT_PORT),
       FEATURE_UNIFORM_RUNNERS_ENABLED: "1",
     };
@@ -644,7 +649,7 @@ test("if the app dies, the stack closes its own stores", async () => {
   }
 });
 
-test("the packaged app loads Sektar's own pieces and document models", { skip: !installed }, async () => {
+test("the packaged app loads Sektar's own pieces and document models", { skip: !packaged }, async () => {
   await clearWindow();
   const root = scratchRoot("own-package");
   writeSettings(root);
