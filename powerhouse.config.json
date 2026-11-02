@@ -15,9 +15,9 @@
   "connect": {
     "branding": {
       "appName": "Sektar",
-      "icon": "./icons/sektar.png",
+      "icon": "./icons/sektar_app.png",
       "loader": {
-        "src": "./icons/sektar_192x192.png",
+        "src": "./icons/sektar_app_192x192.png",
         "animation": "pulse",
         "size": 88
       }
