@@ -34,6 +34,20 @@ kept_secret() {
 kept_secret PH_WORKFLOWS_SECRETS_MASTER_KEY workflows-master-key
 kept_secret PH_ATTACHMENT_URL_SIGNING_SECRET attachment-url-signing-secret
 
+# The OpenRouter key a Vetra environment comes with (Vetra's LLM broker sets
+# OPENROUTER_API_KEY, capped at the plan's budget): handed to the switchboard
+# as its demo key (powerhouse.config.json ai.demoKeyFile), so the Assistant's
+# setup card offers "Use the key included with your Sektar". An admin's click
+# stores it like a typed key. Rewritten on every start, and removed when the
+# environment has none, so a revoked key is not offered again.
+included_key="/app/.ph/included-openrouter-key"
+if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+  mkdir -p "$(dirname "$included_key")"
+  (umask 077 && printf '%s' "$OPENROUTER_API_KEY" > "$included_key")
+else
+  rm -f "$included_key"
+fi
+
 # Run records (pids) on the kept volume are from a container that is gone: in
 # a fresh container nothing of this host runs yet, and a stale record makes
 # `ph run` refuse to start ("already running") after every restart.
