@@ -236,6 +236,23 @@ export function KeyCard({
       ) : (
         <p>The assistant needs an OpenRouter key before it can start.</p>
       )}
+      {!status.configured && status.demoKeyAvailable && (
+        // A cloud Sektar comes with a key of its own (Vetra's, capped at the
+        // plan's budget); the switchboard calls it a demo key. One click
+        // stores it like a typed key, so Replace and Reset work as ever.
+        <div className="sk-assistant__key-included">
+          <Button
+            variant="primary"
+            disabled={busy}
+            onClick={() => void run(gateway.setDemoKey)}
+          >
+            {busy ? "Testing…" : "Use the key included with your Sektar"}
+          </Button>
+          <p className="sk-hint">
+            Or use your own OpenRouter key below. You can switch at any time.
+          </p>
+        </div>
+      )}
       {showForm ? (
         <form className="sk-assistant__key-form" onSubmit={submit}>
           <Field

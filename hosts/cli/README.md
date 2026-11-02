@@ -67,6 +67,12 @@ Set as environment variables (Compose: `cli.env`, plus the database URL in `dock
 | `RESOLVE_CALLER_IDENTITY=true` | Callers are identified from their Renown credentials. |
 | `INSPECTION_ADMIN_ENABLED=true` | Admins see the reactor's operational views. |
 
+### The Assistant's included key (optional)
+
+| Variable | What |
+|---|---|
+| `OPENROUTER_API_KEY` | An OpenRouter key this instance comes with. Vetra's LLM broker sets it on a cloud environment, capped at the plan's budget. On `serve` the entrypoint writes it to `/app/.ph/included-openrouter-key` (mode 600), the switchboard's demo key (`ai.demoKeyFile` in `powerhouse.config.json`), and unsets it. The Assistant's setup card then offers **Use the key included with your Sektar** to an admin: one click stores it like a typed key. Unset, nothing is offered. A key stored this way is a copy: when the plan's key changes, **Reset key** and use it again. |
+
 ### Files to mount
 
 | Path in the container | What |

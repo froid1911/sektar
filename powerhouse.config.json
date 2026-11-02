@@ -91,5 +91,8 @@
         }
       }
     ]
+  },
+  "ai": {
+    "demoKeyFile": ".ph/included-openrouter-key"
   }
 }

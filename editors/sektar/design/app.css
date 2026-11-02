@@ -3061,6 +3061,12 @@ html { touch-action: manipulation; }
   flex-wrap: wrap;
   gap: var(--sk-space-2);
 }
+.sk-assistant__key-included {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sk-space-2);
+}
 .sk-assistant__key > * + *:not(.sk-overlay, .sk-modal) {
   margin-top: var(--sk-space-3);
 }
