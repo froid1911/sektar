@@ -61,4 +61,12 @@ unset OPENROUTER_API_KEY
 # `ph run` refuse to start ("already running") after every restart.
 rm -rf "${PH_USER_DATA_DIR:-/data}/.ph/run"
 
+# Connect's own static server (ph-cli 6.2.3-dev.87+, "serve a built Connect
+# without vite") only answers Host headers that are localhost, *.localhost or
+# an IP: behind a public name (Vetra's <env>.vetra.io, any domain) every asset
+# is "403 This host (...) is not allowed." and Sektar loads blank. vite preview
+# honours __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS, which Vetra sets to the
+# environment's host, as up to dev.86. An explicit value wins.
+export PH_CONNECT_SERVER="${PH_CONNECT_SERVER:-vite}"
+
 exec node_modules/.bin/ph-cli run "${PH_HOST:-cli}" "${PH_VERB:-serve}"
