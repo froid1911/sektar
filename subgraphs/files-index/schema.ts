@@ -95,7 +95,8 @@ export const schema: DocumentNode = gql`
     """
     A page of a folder (the root when folderId is null), folders first, then
     by name. Deep, the folder and every folder below it, documents only.
-    query is a word search over names, titles, descriptions, tags and sources.
+    query is a word search over names, titles, descriptions, tags and sources;
+    a deep search finds the folders that match as well.
     """
     listing(
       driveId: String!

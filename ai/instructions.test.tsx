@@ -210,6 +210,7 @@ describe("assistantInstructions", () => {
 
   it("sends Files through the tool", () => {
     expect(instructions).toContain("call sektarAddToFiles with its handle");
+    expect(instructions).toContain("call sektarMoveInFiles with its path");
     expect(instructions).not.toContain("take driveId from sektarFindFiles");
     expect(instructions).not.toContain("documentType sektar/file");
   });
