@@ -32,16 +32,33 @@ export type StepRetry = {
 /**
  * What every workflow the reconciler builds retries: a step whose piece the
  * runtime could not fetch yet, which is what the first runs after a
- * switchboard start meet while npm answers slowly. Any other failed step
- * still parks the workflow at once. Without it, each restart parked the
- * backfills and the slices skipped while parked were lost.
+ * switchboard start meet while npm answers slowly, and a request that never
+ * got an answer (the network dropped, the provider's gateway was briefly
+ * down). Any other failed step still parks the workflow at once. Without it,
+ * each restart parked the backfills, and one dropped connection to a bank's
+ * API stopped its live updates until someone pressed "Try again".
+ *
+ * Matched anywhere in the error's message, case-insensitively. Kept to
+ * failures where nothing was answered: a refusal (4xx, a sign-in that no
+ * longer works) still parks, since retrying it only repeats the refusal.
  */
 export const STEP_RETRY: StepRetry = {
   maxAttempts: 4,
   backoff: "EXPONENTIAL",
   initialDelaySeconds: 30,
   maxDelaySeconds: 120,
-  retryOn: ["No source could be asked for"],
+  retryOn: [
+    "No source could be asked for",
+    "fetch failed",
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "ECONNREFUSED",
+    "EAI_AGAIN",
+    "socket hang up",
+    "returned 502",
+    "returned 503",
+    "returned 504",
+  ],
 };
 
 export type TriggerSpec = {

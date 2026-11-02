@@ -16,6 +16,7 @@ import {
   indexByKey,
   indexByRemote,
   indexBySlug,
+  IndexUnauthenticatedError,
   planUpsert,
   runUpsert,
   slugFor,
@@ -279,7 +280,7 @@ describe("the lookup", () => {
 
   it("names a refusal as one, without guessing at a missing subgraph", async () => {
     const refused: UpsertReactor["query"] = () =>
-      Promise.reject(new Error("Forbidden: authentication required"));
+      Promise.reject(new Error("Forbidden: 0xabc is not an admin of this host"));
     const failure = await indexByRemote({
       reactor: { query: refused },
       driveId: DRIVE,
@@ -287,7 +288,7 @@ describe("the lookup", () => {
       keys: ["gmail:1"],
     }).catch((error: unknown) => error as Error);
     expect((failure as Error).message).toMatch(
-      /key index refused this run \(Forbidden: authentication required\); nothing was written/,
+      /key index refused this run \(Forbidden: 0xabc is not an admin of this host\); nothing was written/,
     );
     expect((failure as Error).message).not.toMatch(/installed/);
   });
@@ -407,6 +408,55 @@ describe("writing a batch", () => {
     // No drive scan happened: the only find is none at all.
     expect(reactor.calls.filter((c) => c.method === "find")).toHaveLength(0);
     expect(reactor.calls.filter((c) => c.method === "query")).toHaveLength(1);
+  });
+
+  it("falls back to slugs when the key index refuses an anonymous run, and finds what earlier runs wrote", async () => {
+    const refusals = [
+      () => Promise.reject(new Error("Forbidden: authentication required")),
+      () => Promise.resolve({ errors: [{ message: "Authentication required" }] }),
+      // dev.87 on, under ADMIN_ONLY
+      () =>
+        Promise.resolve({
+          errors: [{ message: "Forbidden: this run has no person behind it, so it reads no index" }],
+        }),
+    ] satisfies UpsertReactor["query"][];
+    for (const query of refusals) {
+      const reactor = fakeReactor([], { query });
+      const first = await runUpsert(reactor, {
+        ...baseOptions,
+        lookup: "index",
+        items: [message("1")],
+      });
+      expect(first.counts).toMatchObject({ created: 1, updated: 0, failed: 0 });
+      // The rerun finds the document by the slug the first run gave it: no twin.
+      const again = await runUpsert(reactor, {
+        ...baseOptions,
+        lookup: "index",
+        items: [message("1"), message("2")],
+      });
+      expect(again.counts).toMatchObject({ created: 1, updated: 1, failed: 0 });
+      expect(again.updated[0]).toMatchObject({ key: "gmail:1" });
+    }
+  });
+
+  it("does not route around a refusal of the run's own person", async () => {
+    const { query } = fakeIndex(
+      {},
+      "Forbidden: 0xabc is not an admin of this host, so it reads no index",
+    );
+    const reactor = fakeReactor([], { query });
+    await expect(
+      runUpsert(reactor, { ...baseOptions, lookup: "index", items: [message("1")] }),
+    ).rejects.toThrow(/key index refused the lookup: Forbidden: 0xabc is not an admin/);
+    expect(reactor.calls.filter((c) => c.method === "create")).toHaveLength(0);
+  });
+
+  it("names an anonymous refusal as such, not as a missing index", async () => {
+    const down: UpsertReactor["query"] = () =>
+      Promise.reject(new Error("Forbidden: authentication required"));
+    await expect(
+      indexByRemote({ reactor: { query: down }, driveId: DRIVE, documentType: TYPE, keys: ["gmail:1"] }),
+    ).rejects.toThrow(IndexUnauthenticatedError);
   });
 
   it("writes nothing when the key index cannot be asked", async () => {

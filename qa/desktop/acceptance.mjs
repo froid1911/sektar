@@ -797,7 +797,7 @@ test("an admin can use the demo key, and choose auto-approve", { skip: !hasDemoK
     await app.page.fill(name, "Tester", { timeout: 60_000 });
     await app.page.press(name, "Enter");
 
-    await app.page.getByRole("button", { name: "Use the demo key" }).click({ timeout: 60_000 });
+    await app.page.getByRole("button", { name: "Use the key included with your Sektar" }).click({ timeout: 60_000 });
     await app.page.waitForSelector(checkbox, { timeout: 30_000 });
     assert.doesNotMatch(await app.page.content(), /sk-or-v1-[a-z0-9]{20,}/);
     await app.page.waitForFunction(() =>

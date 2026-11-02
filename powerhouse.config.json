@@ -81,9 +81,6 @@
   "assistant": {
     "port": 4910
   },
-  "ai": {
-    "demoKeyFile": "../openrouter-demo-key.txt"
-  },
   "workflows": {
     "oauthApps": [
       {
@@ -94,5 +91,8 @@
         }
       }
     ]
+  },
+  "ai": {
+    "demoKeyFile": ".ph/included-openrouter-key"
   }
 }
