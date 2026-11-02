@@ -396,3 +396,20 @@ it("says intervals the way people do", () => {
     "2 days",
   ]);
 });
+
+describe("the step retry", () => {
+  // The runtime matches retryOn anywhere in the message, case-insensitively.
+  const retries = (message: string) =>
+    STEP_RETRY.retryOn.some((s) => message.toLowerCase().includes(s.toLowerCase()));
+
+  it("retries a request that got no answer, which parked a bank's live updates", () => {
+    expect(retries('Step "pull" failed: Error: Distyra request failed: fetch failed')).toBe(true);
+    expect(retries("Distyra API returned 503.")).toBe(true);
+    expect(retries("No source could be asked for @sektar/distyra")).toBe(true);
+  });
+
+  it("still parks on a refusal, which a retry would only repeat", () => {
+    expect(retries("Distyra API returned 401 (invalid_api_key).")).toBe(false);
+    expect(retries("Distyra API returned 429 (bank_fetch_limit_reached).")).toBe(false);
+  });
+});
