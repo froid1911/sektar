@@ -40,13 +40,21 @@ kept_secret PH_ATTACHMENT_URL_SIGNING_SECRET attachment-url-signing-secret
 # setup card offers "Use the key included with your Sektar". An admin's click
 # stores it like a typed key. Rewritten on every start, and removed when the
 # environment has none, so a revoked key is not offered again.
+# - Only for `serve`: a desktop build from this image would bundle the file
+#   into its installer (bundle-stack.ts copies ai.demoKeyFile).
+# - Never fatal: on a read-only /app the Assistant just offers no key.
+# - Unset afterwards: nothing else in this host reads it, so the key lives in
+#   the file (mode 600) and, once used, the switchboard's store only.
 included_key="/app/.ph/included-openrouter-key"
-if [ -n "${OPENROUTER_API_KEY:-}" ]; then
-  mkdir -p "$(dirname "$included_key")"
-  (umask 077 && printf '%s' "$OPENROUTER_API_KEY" > "$included_key")
+if [ -n "${OPENROUTER_API_KEY:-}" ] && [ "${PH_VERB:-serve}" = "serve" ]; then
+  if ! { mkdir -p "$(dirname "$included_key")" \
+      && (umask 077 && printf '%s' "$OPENROUTER_API_KEY" > "$included_key"); } 2>/dev/null; then
+    echo "[entrypoint] could not write $included_key: the Assistant will not offer the included OpenRouter key" >&2
+  fi
 else
-  rm -f "$included_key"
+  rm -f "$included_key" 2>/dev/null || true
 fi
+unset OPENROUTER_API_KEY
 
 # Run records (pids) on the kept volume are from a container that is gone: in
 # a fresh container nothing of this host runs yet, and a stale record makes

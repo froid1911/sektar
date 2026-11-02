@@ -11,7 +11,9 @@ import { KeyCard } from "./assistant.js";
 // The key card of a cloud Sektar: Vetra's key reaches the switchboard as its
 // demo key (hosts/cli/docker-entrypoint.sh), and the card offers it.
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 let host: HTMLDivElement;
 let root: Root;
@@ -27,10 +29,19 @@ afterEach(() => {
   host.remove();
 });
 
-const status = (over: Partial<AiGatewayStatus>): AiGatewayStatus =>
-  ({ configured: false, demoKeyAvailable: false, ...over }) as AiGatewayStatus;
+const status = (over: Partial<AiGatewayStatus>): AiGatewayStatus => ({
+  configured: false,
+  keyHint: null,
+  keySetBy: null,
+  keySetAt: null,
+  model: "openai/gpt-4o-mini",
+  demoKeyAvailable: false,
+  ...over,
+});
 
-const gateway = (over: Partial<UseAiGatewayResult> = {}): UseAiGatewayResult => ({
+const gateway = (
+  over: Partial<UseAiGatewayResult> = {},
+): UseAiGatewayResult => ({
   gateway: undefined,
   connection: undefined,
   setKey: () => Promise.resolve(),
@@ -49,7 +60,10 @@ describe("the key a cloud Sektar comes with", () => {
     const setDemoKey = vi.fn(() => Promise.resolve());
     act(() =>
       root.render(
-        <KeyCard status={status({ demoKeyAvailable: true })} gateway={gateway({ setDemoKey })} />,
+        <KeyCard
+          status={status({ demoKeyAvailable: true })}
+          gateway={gateway({ setDemoKey })}
+        />,
       ),
     );
     const button = included();
@@ -57,7 +71,7 @@ describe("the key a cloud Sektar comes with", () => {
     // The typed key stays possible beside it.
     expect(host.querySelector('input[name="openrouter-key"]')).not.toBeNull();
     await act(async () => {
-      button!.click();
+      button?.click();
       await Promise.resolve();
     });
     expect(setDemoKey).toHaveBeenCalledTimes(1);
@@ -69,7 +83,11 @@ describe("the key a cloud Sektar comes with", () => {
     act(() =>
       root.render(
         <KeyCard
-          status={status({ configured: true, demoKeyAvailable: true, keyHint: "sk-or-…7c1b" })}
+          status={status({
+            configured: true,
+            demoKeyAvailable: true,
+            keyHint: "sk-or-…7c1b",
+          })}
           gateway={gateway()}
         />,
       ),
@@ -78,14 +96,19 @@ describe("the key a cloud Sektar comes with", () => {
   });
 
   it("shows why the included key was refused", async () => {
-    const setDemoKey = vi.fn(() => Promise.reject(new Error("OpenRouter refused the key")));
+    const setDemoKey = vi.fn(() =>
+      Promise.reject(new Error("OpenRouter refused the key")),
+    );
     act(() =>
       root.render(
-        <KeyCard status={status({ demoKeyAvailable: true })} gateway={gateway({ setDemoKey })} />,
+        <KeyCard
+          status={status({ demoKeyAvailable: true })}
+          gateway={gateway({ setDemoKey })}
+        />,
       ),
     );
     await act(async () => {
-      included()!.click();
+      included()?.click();
       await Promise.resolve();
     });
     expect(host.textContent).toContain("OpenRouter refused the key");
