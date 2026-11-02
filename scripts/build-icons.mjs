@@ -58,6 +58,14 @@ for (const s of [1024, 512, 192, 64, 32, 16]) {
   );
 }
 
+// Installed app icon (Mint vivid): what a phone, a desktop and a browser tab show
+const installedIcon = svg("app-icons/sektar-app-icon-mint-vivid-light.svg");
+for (const s of [1024, 512, 192, 64, 32, 16]) {
+  await png(installedIcon, s).toFile(
+    path.join(OUT, s === 1024 ? "sektar_app.png" : `sektar_app_${s}x${s}.png`),
+  );
+}
+
 // Symbol (sidebar / drive icon) at 64 and 128; favicon.svg copied as is
 const symbol = svg("logos/sektar-symbol-light.svg");
 await png(symbol, 128).toFile(path.join(OUT, "sektar_symbol_128x128.png"));

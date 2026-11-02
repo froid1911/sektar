@@ -8,12 +8,12 @@ Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on 
 
 | Source | Modified | sha1 |
 |---|---|---|
-| assets/app-icons/sektar-app-icon-forest-dark.svg | 2026-10-17T13:42:08.497Z | 3dd4856bc0d3 |
-| assets/app-icons/sektar-app-icon-forest-light.svg | 2026-10-17T13:42:08.514Z | ad4c5bca43c0 |
-| assets/app-icons/sektar-app-icon-mint-dark.svg | 2026-10-18T16:08:34.403Z | 7b6f1d862e24 |
-| assets/app-icons/sektar-app-icon-mint-light.svg | 2026-10-18T16:08:34.403Z | bd7b6f34318f |
-| assets/app-icons/sektar-app-icon-sage-dark.svg | 2026-10-17T13:42:08.532Z | c9bfd5fa19b6 |
-| assets/app-icons/sektar-app-icon-sage-light.svg | 2026-10-17T13:42:08.533Z | 8609c8356ea2 |
+| assets/app-icons/sektar-app-icon-forest-dark.svg | 2026-10-31T15:21:47.163Z | 9e299e908d89 |
+| assets/app-icons/sektar-app-icon-forest-light.svg | 2026-10-31T15:21:47.163Z | 755b4e9019e3 |
+| assets/app-icons/sektar-app-icon-mint-dark.svg | 2026-10-31T15:21:47.160Z | c7f050624136 |
+| assets/app-icons/sektar-app-icon-mint-light.svg | 2026-10-31T15:21:47.160Z | b73f349845e9 |
+| assets/app-icons/sektar-app-icon-sage-dark.svg | 2026-10-31T15:22:13.441Z | 724aa683f254 |
+| assets/app-icons/sektar-app-icon-sage-light.svg | 2026-10-31T15:22:13.441Z | 872186606803 |
 | assets/favicon.svg | 2026-10-18T11:45:08.149Z | e1fe1fda7cf9 |
 | assets/icons.svg | 2026-10-28T12:37:53.943Z | eb0fe12ac647 |
 | assets/logos/sektar-logo-horizontal-dark.svg | 2026-10-17T13:42:08.412Z | 1a90a04b302e |
