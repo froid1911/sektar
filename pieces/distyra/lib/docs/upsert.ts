@@ -256,6 +256,26 @@ export async function indexBySlug(
 }
 
 /**
+ * How the switchboard words a refusal of a run with no person behind it:
+ * "authentication required" up to 6.2.3-dev.86 (the authenticated-caller
+ * floor), "this run has no person behind it" from dev.87 under ADMIN_ONLY.
+ * A run whose person is refused (not an admin) is not matched: that refusal
+ * is the policy's answer, and the slug lookup must not route around it.
+ */
+const AUTHENTICATION_REQUIRED = /authentication required|has no person behind it/i;
+
+/**
+ * The key index refused the lookup because the run reached it anonymously:
+ * a host-signed run (the integration reconciler publishes its workflows as
+ * the host) on a host with no signed-in identity, under an authenticated
+ * caller floor. That is every Vetra cloud host today. Not a missing index,
+ * and not an answer: runUpsert falls back to the slug lookup for it.
+ */
+export class IndexUnauthenticatedError extends Error {
+  override name = "IndexUnauthenticatedError";
+}
+
+/**
  * The documents of a batch that already exist, by key, asked of the key
  * index through the reactor: the host runs the query in process as this
  * run's user, so the index's own access rules decide and no URL or
@@ -284,14 +304,24 @@ export async function indexByRemote(options: {
       variables: { d: options.driveId, t: options.documentType, k: keys },
     })) as typeof payload;
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (AUTHENTICATION_REQUIRED.test(message)) {
+      throw new IndexUnauthenticatedError(
+        `The key index refused this run as anonymous (${message}): the run has no user and the host has no signed-in identity.`,
+      );
+    }
     throw new Error(
-      `The key index could not be asked (${error instanceof Error ? error.message : String(error)}); nothing was written. Is the key-index subgraph installed on the switchboard?`,
+      `The key index could not be asked (${message}); nothing was written. Is the key-index subgraph installed on the switchboard?`,
     );
   }
   if (payload.errors?.length) {
-    throw new Error(
-      `The key index refused the lookup: ${payload.errors.map((e) => e.message).join("; ")}`,
-    );
+    const message = payload.errors.map((e) => e.message).join("; ");
+    if (AUTHENTICATION_REQUIRED.test(message)) {
+      throw new IndexUnauthenticatedError(
+        `The key index refused this run as anonymous (${message}): the run has no user and the host has no signed-in identity.`,
+      );
+    }
+    throw new Error(`The key index refused the lookup: ${message}`);
   }
   for (const hit of payload.data?.keyIndex?.find ?? []) {
     // First wins: two documents under one key is a problem the index cannot
@@ -439,6 +469,32 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * The key index, or the slugs when the index refuses the run as anonymous.
+ * The slug lookup is not "nothing exists": every document this step creates
+ * carries the slug of its key (see the create below), so it finds every
+ * document an earlier run wrote. It is blind only to documents of the same
+ * key made some other way, which is the narrower risk; any other failure of
+ * the index still stops the batch before it writes.
+ */
+async function indexByRemoteOrSlug(
+  reactor: UpsertReactor,
+  options: UpsertOptions,
+  keys: string[],
+): Promise<Map<string, DocumentLike>> {
+  try {
+    return await indexByRemote({
+      reactor,
+      driveId: options.driveId,
+      documentType: options.documentType,
+      keys,
+    });
+  } catch (error) {
+    if (!(error instanceof IndexUnauthenticatedError)) throw error;
+    return indexBySlug(reactor, options.documentType, options.driveId, keys);
+  }
+}
+
 export async function runUpsert(
   reactor: UpsertReactor,
   options: UpsertOptions,
@@ -482,12 +538,7 @@ export async function runUpsert(
             options.driveId,
             keys,
           )
-        : await indexByRemote({
-            reactor,
-            driveId: options.driveId,
-            documentType: options.documentType,
-            keys,
-          });
+        : await indexByRemoteOrSlug(reactor, options, keys);
   const folders = new Folders(reactor, options.driveId);
   // Fetched lazily: a batch that only updates never needs the model.
   let module: ModuleLike | undefined;
