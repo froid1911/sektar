@@ -1,13 +1,19 @@
 name: Desktop
 # The Sektar desktop app (hosts/desktop: switchboard + Connect in a Tauri
-# window) for macOS, Windows and Linux, attached to the release of a v* tag.
-# Unsigned: the OS asks the user to confirm the first launch.
+# window) for macOS (Apple Silicon), Windows and Linux. A v* tag gets a release
+# once all three have built and started.
+# Signed ad hoc, by no developer: macOS asks the user to confirm the first
+# launch (Privacy & Security, Open Anyway), and Windows' SmartScreen asks too.
 on:
   push:
     tags: ["v*"]
   # A change to the desktop host or this workflow proves the build before a tag.
   pull_request:
-    paths: ["hosts/desktop/**", ".github/workflows/desktop.yml"]
+    paths:
+      - "hosts/desktop/**"
+      - ".github/workflows/desktop.yml"
+      - ".github/scripts/desktop-secrets.mjs"
+      - "qa/desktop/smoke.mjs"
   workflow_dispatch:
 permissions:
   contents: write
@@ -39,8 +45,13 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 file
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 file xvfb
       - run: pnpm install --frozen-lockfile
+      - name: The Google desktop client and the AI demo key this build ships
+        run: node .github/scripts/desktop-secrets.mjs
+        env:
+          GOOGLE_DESKTOP_OAUTH_CLIENT: ${{ secrets.GOOGLE_DESKTOP_OAUTH_CLIENT }}
+          OPENROUTER_DEMO_KEY: ${{ secrets.OPENROUTER_DEMO_KEY }}
       - run: pnpm exec ph-cli run desktop build
         # Linux bundles the .deb before the AppImage; an AppImage failure
         # (linuxdeploy on a runner) must not cost the .deb, checked below.
@@ -48,17 +59,32 @@ jobs:
       - name: Linux installer present
         if: runner.os == 'Linux'
         run: ls hosts/desktop/*/target/release/bundle/deb/*.deb
-      - name: Attach the installers to the release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            hosts/desktop/**/release/bundle/dmg/*.dmg
-            hosts/desktop/**/release/bundle/nsis/*.exe
-            hosts/desktop/**/release/bundle/deb/*.deb
-            hosts/desktop/**/release/bundle/appimage/*.AppImage
-      - name: Keep the installers of a manual run
-        if: "!startsWith(github.ref, 'refs/tags/v')"
+
+      # The app as it ships starts with no environment, and its stack runs.
+      - name: The app starts (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          app=hosts/desktop/tauri-shell/target/release/bundle/macos/Sektar.app
+          node qa/desktop/smoke.mjs --app "$app/Contents/MacOS/sektar" \
+            --node "$app/Contents/MacOS/node" --stack "$app/Contents/Resources/stack"
+          # After the run: a file the stack wrote into the bundle breaks this too.
+          codesign --verify --deep --strict --verbose=2 "$app"
+      - name: The app starts (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          out=hosts/desktop/tauri-shell/target/release
+          node qa/desktop/smoke.mjs --app "$out/sektar.exe" --node "$out/node.exe" --stack "$out/stack"
+      - name: The app starts (Linux, from the .deb)
+        if: runner.os == 'Linux'
+        run: |
+          root="$RUNNER_TEMP/deb"
+          dpkg-deb -x hosts/desktop/tauri-shell/target/release/bundle/deb/*.deb "$root"
+          stack=$(find "$root/usr/lib" -maxdepth 2 -type d -name stack | head -1)
+          xvfb-run -a node qa/desktop/smoke.mjs --app "$root/usr/bin/sektar" \
+            --node "$root/usr/bin/node" --stack "$stack"
+
+      - name: Keep the installers
         uses: actions/upload-artifact@v4
         with:
           name: sektar-desktop-${{ matrix.os }}
@@ -68,3 +94,24 @@ jobs:
             hosts/desktop/**/release/bundle/deb/*.deb
             hosts/desktop/**/release/bundle/appimage/*.AppImage
           if-no-files-found: warn
+
+  # Only once every platform has built and started: a release that lacks one
+  # says nothing about why.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sektar-desktop-*
+          path: installers
+          merge-multiple: true
+      - name: Attach the installers to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installers/**/*.dmg
+            installers/**/*.exe
+            installers/**/*.deb
+            installers/**/*.AppImage

@@ -31,6 +31,10 @@ export default {
 
   runner: {
     module: "@powerhousedao/desktop/runner",
+    // Fold the vendored backend into a few hundred files: tens of thousands
+    // took minutes to install on Windows, and its nested paths went past the
+    // 260 characters the Windows installer can write.
+    bundleBackend: true,
     // NATIVE WINDOW: two ways to get one (headless verbs need neither).
     //
     // 1. BUILDER-OWNED IDENTITY (recommended, no Rust): run
