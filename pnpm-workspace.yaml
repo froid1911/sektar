@@ -13,6 +13,11 @@ overrides:
   date-fns: "4.3.0"
   vite: "8.0.14"
   rolldown: "1.0.2"
+  # The desktop runner bundles the backend with its own Rolldown. 1.0.2 drops
+  # an import across chunks for @opentelemetry/semantic-conventions 1.44, and
+  # the stack then stops at "Cannot access 'require_stable_attributes' before
+  # initialization"; 1.2.9 doesn't. Vite 8.0.14 needs 1.0.2 itself.
+  "@powerhousedao/desktop>rolldown": "1.2.9"
 # pnpm scripts never reinstall: an install made with POWERHOUSE_DIR (see
 # .pnpmfile.cjs) stays in place until the next explicit `pnpm install`.
 verifyDepsBeforeRun: false
