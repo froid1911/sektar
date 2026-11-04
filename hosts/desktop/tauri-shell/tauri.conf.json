@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Sektar",
-  "version": "0.1.0",
+  "version": "1.0.8",
   "identifier": "inc.powerhouse.desktop.sektar",
   "build": {
     "frontendDist": "./ui"
@@ -52,6 +52,10 @@
     ],
     "resources": {
       "./dist-stack": "stack"
+    },
+    "macOS": {
+      "signingIdentity": "-",
+      "hardenedRuntime": false
     }
   }
 }

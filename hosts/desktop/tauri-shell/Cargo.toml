@@ -15,7 +15,7 @@ tauri = { version = "2", features = ["tray-icon", "devtools"] }
 # permission manifests (shell:allow-spawn etc.) from direct dependencies.
 tauri-plugin-shell = "2"
 tauri-plugin-single-instance = "2"
-ph-desktop-shell = "0.1"
+ph-desktop-shell = "0.1.1"
 
 [[bin]]
 name = "sektar"
