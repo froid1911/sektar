@@ -6,7 +6,7 @@ import {
   fireWith,
   isParked,
   latestRuns,
-  rerun,
+  retryFailedRun,
   runsToRetry,
   setWorkflowStatus,
   useWorkflowRuntimeUrl,
@@ -20,7 +20,8 @@ const RELEASE_EVERY_MS = 1_000;
 
 /**
  * "Try again" for a workflow the runtime parked after a failed run. It reruns
- * the failed run, then fires again every firing the runtime refused while
+ * the failed run (fired again with its payload when the runtime cannot replay
+ * it), then fires again every firing the runtime refused while
  * parked (a backfill's skipped slices, oldest first), stopping at the first
  * that still fails; pressed again, it picks up where it stopped. When they
  * go through, it switches the workflow off, waits until the runtime has
@@ -47,7 +48,7 @@ export function TryAgain({
       const failed = pending?.failed;
       const steps = pending
         ? [
-            ...(failed ? [() => rerun(url, failed.id)] : []),
+            ...(failed ? [() => retryFailedRun(url, workflowId, failed)] : []),
             ...pending.skipped.map(
               (run) => () => fireWith(url, workflowId, run.triggerPayload),
             ),

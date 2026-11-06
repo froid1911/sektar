@@ -204,13 +204,13 @@ const OPERATOR_KINDS = new Set(["rerun", "manual"]);
 
 /**
  * What "Try again" runs again after a park: the failed run that parked the
- * workflow (rerun: it resumes where it failed), then every firing the
- * runtime refused while parked, oldest first (fired again with its payload:
- * a refused firing never ran, so it cannot be rerun; for a backfill each is
- * a slice that would otherwise be missing). An earlier Try again's runs are
- * looked past, and what they already brought in is left out, so pressing it
- * again picks up where the last one stopped. Null when the newest outcome
- * of the trigger is not a failure.
+ * workflow (rerun: it resumes where it failed; see retryFailedRun), then
+ * every firing the runtime refused while parked, oldest first (fired again
+ * with its payload: a refused firing never ran, so it cannot be rerun; for a
+ * backfill each is a slice that would otherwise be missing). An earlier Try
+ * again's runs are looked past, and what they already brought in is left out,
+ * so pressing it again picks up where the last one stopped. Null when the
+ * newest outcome of the trigger is not a failure.
  */
 export function runsToRetry(
   newestFirst: readonly RunSummary[],
@@ -278,6 +278,39 @@ export async function fireWith(
     { workflowId, payload },
   );
   return data.workflowRuntime.fire;
+}
+
+/**
+ * How the runtime ends a rerun it cannot resume from the run journal: a step
+ * output it journaled redacted (a field named like a credential, such as
+ * Google Calendar's nextSyncToken or an email's DKIM-Signature header) or
+ * capped, which a later step reads.
+ */
+const FIRE_AGAIN = "fire the workflow again instead of rerunning it";
+
+/** Whether a rerun ended because the runtime cannot replay the run, and says to fire it again. */
+export function cannotReplay(result: RerunResult): boolean {
+  return (
+    result.status !== "SUCCEEDED" &&
+    (result.error?.toLowerCase().includes(FIRE_AGAIN) ?? false)
+  );
+}
+
+/**
+ * Runs a failed run again: resumed where it failed, or, when the runtime
+ * cannot replay it, fired again with the payload it had. Firing runs every
+ * step again; an integration's steps read and upsert, so that brings in the
+ * same items once.
+ */
+export async function retryFailedRun(
+  url: string,
+  workflowId: string,
+  run: Pick<RunSummary, "id" | "triggerPayload">,
+): Promise<RerunResult> {
+  const result = await rerun(url, run.id);
+  return cannotReplay(result)
+    ? fireWith(url, workflowId, run.triggerPayload)
+    : result;
 }
 
 /**
@@ -391,7 +424,9 @@ export async function fireWorkflow(
   workflowId: string,
   payload: unknown,
 ): Promise<boolean> {
-  const data = await gql<{ workflowRuntime: { fire: { status?: string } | null } }>(
+  const data = await gql<{
+    workflowRuntime: { fire: { status?: string } | null };
+  }>(
     url,
     `mutation Fire($workflowId: String!, $payload: Unknown) {
       workflowRuntime { fire(workflowId: $workflowId, payload: $payload) { status } }
