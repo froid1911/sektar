@@ -306,7 +306,8 @@ describe("cardView", () => {
               code: "NEEDS_SIGN_IN",
               severity: "BLOCKING",
               subject: "conn",
-              message: "Sign in",
+              message:
+                "Sign in to Google again on pc: Google no longer accepts the sign-in",
               fixable: false,
               since: "2026-10-28T10:00:00.000Z",
             },
@@ -315,6 +316,10 @@ describe("cardView", () => {
       }),
     );
     expect(view.state).toBe("waiting-for-sign-in");
+    // In the runner's words, which say why
+    expect(view.line).toBe(
+      "Sign in to Google again on pc: Google no longer accepts the sign-in",
+    );
   });
 
   it("applies, then goes live or paused once the generation is committed", () => {

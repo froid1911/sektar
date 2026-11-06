@@ -699,6 +699,10 @@ async function readyConnection(
   const granted = facts.granted;
   const covered = !!granted && wanted.every((scope) => granted.includes(scope));
   if (!facts.signedIn || facts.status !== "OK" || !covered) {
+    // Signed in for too little, or signed in and then refused (the runtime
+    // records ERROR when the provider refuses the sign-in: revoked, expired).
+    const more = facts.signedIn && facts.status === "OK";
+    const refused = facts.signedIn && facts.status === "ERROR";
     issues.push({
       code: "NEEDS_SIGN_IN",
       severity: "BLOCKING",
@@ -706,12 +710,16 @@ async function readyConnection(
       // In an environment the card's button signs in from wherever the
       // person is; on a computer, only there.
       message: io.environment
-        ? facts.signedIn && facts.status === "OK"
+        ? more
           ? `Sign in with ${provider.label} again to finish: it needs more access`
-          : `Sign in with ${provider.label} to finish`
-        : facts.signedIn && facts.status === "OK"
+          : refused
+            ? `Sign in with ${provider.label} again: ${provider.label} no longer accepts the sign-in`
+            : `Sign in with ${provider.label} to finish`
+        : more
           ? `Sign in to ${provider.label} again on ${io.me.label}: it needs more access`
-          : `Sign in to ${provider.label} on ${io.me.label} to finish`,
+          : refused
+            ? `Sign in to ${provider.label} again on ${io.me.label}: ${provider.label} no longer accepts the sign-in`
+            : `Sign in to ${provider.label} on ${io.me.label} to finish`,
       fixable: false,
       since: since("NEEDS_SIGN_IN"),
     });

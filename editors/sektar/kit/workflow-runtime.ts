@@ -313,6 +313,73 @@ export async function retryFailedRun(
     : result;
 }
 
+/** How long to wait for the runtime to see the switch-off before switching back on */
+const RELEASE_WAIT_MS = 20_000;
+const RELEASE_EVERY_MS = 1_000;
+
+/**
+ * "Try again" for a workflow the runtime parked after a failed run. It reruns
+ * the failed run (fired again with its payload when the runtime cannot replay
+ * it), then fires again every firing the runtime refused while parked (a
+ * backfill's skipped slices, oldest first), stopping at the first that still
+ * fails; run again, it picks up where it stopped. When they go through, it
+ * switches the workflow off, waits until the runtime has released the park,
+ * and switches it on again: two separate writes through the switchboard (one
+ * synced batch of both does not lift the park). Null when it went through,
+ * else what still fails.
+ */
+export async function restartParked(
+  url: string,
+  workflowId: string,
+  onProgress?: (text: string) => void,
+): Promise<string | null> {
+  const pending = runsToRetry(await latestRuns(url, workflowId));
+  const failed = pending?.failed;
+  const steps = pending
+    ? [
+        ...(failed ? [() => retryFailedRun(url, workflowId, failed)] : []),
+        ...pending.skipped.map(
+          (run) => () => fireWith(url, workflowId, run.triggerPayload),
+        ),
+      ]
+    : [];
+  for (const [i, step] of steps.entries()) {
+    if (steps.length > 1)
+      onProgress?.(`Trying again… ${i + 1} of ${steps.length}`);
+    const result = await step();
+    if (result.status !== "SUCCEEDED") {
+      return result.error ?? `The run ended ${result.status.toLowerCase()}`;
+    }
+  }
+  onProgress?.("Starting it again…");
+  await setWorkflowStatus(url, workflowId, "DISABLED");
+  const until = Date.now() + RELEASE_WAIT_MS;
+  while ((await isParked(url, workflowId)) && Date.now() < until) {
+    await new Promise((r) => setTimeout(r, RELEASE_EVERY_MS));
+  }
+  await setWorkflowStatus(url, workflowId, "ENABLED");
+  return null;
+}
+
+/**
+ * After a new sign-in: Try again for each of these workflows the runtime
+ * holds parked, since a run that failed on the old sign-in parked it. One
+ * that still fails stays parked, and its card offers Try again.
+ */
+export async function restartParkedOf(
+  url: string,
+  workflowIds: readonly (string | null | undefined)[],
+): Promise<void> {
+  const parked = new Set(
+    (await triggerStates(url))
+      .filter((t) => t.status === "PARKED")
+      .map((t) => t.workflowId),
+  );
+  for (const id of workflowIds) {
+    if (id && parked.has(id)) await restartParked(url, id);
+  }
+}
+
 /**
  * Sets a workflow's status through the switchboard (its Workflow mutations,
  * beside the runtime's subgraph), so the runtime sees it as its own write.

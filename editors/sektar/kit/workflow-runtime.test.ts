@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cannotReplay,
+  restartParkedOf,
   retryFailedRun,
   runsToRetry,
   type RunSummary,
@@ -182,5 +183,58 @@ describe("retryFailedRun", () => {
         ]),
       ),
     ).toEqual({ failed: null, skipped: [] });
+  });
+});
+
+describe("restartParkedOf", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("tries again only the workflows the runtime holds parked", async () => {
+    const parked = new Set(["live"]);
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init: { body: string }) => {
+        const { query, variables } = JSON.parse(init.body) as {
+          query: string;
+          variables: {
+            workflowId?: string;
+            id?: string;
+            input?: { status: string };
+          };
+        };
+        let data: unknown = null;
+        if (query.includes("triggerStates")) {
+          data = {
+            workflowRuntime: {
+              triggerStates: ["live", "backfill"].map((workflowId) => ({
+                workflowId,
+                status: parked.has(workflowId) ? "PARKED" : "ENABLED",
+                lastPollAt: null,
+                nextPollAt: null,
+                lastError: null,
+              })),
+            },
+          };
+        } else if (query.includes("runs(")) {
+          calls.push(`runs ${variables.workflowId}`);
+          data = { workflowRuntime: { runs: [] } };
+        } else if (query.includes("setWorkflowStatus")) {
+          calls.push(`${variables.input!.status} ${variables.id}`);
+          if (variables.input!.status === "DISABLED")
+            parked.delete(variables.id!);
+          data = {
+            Workflow: { setWorkflowStatus: { __typename: "Workflow" } },
+          };
+        }
+        return Promise.resolve(new Response(JSON.stringify({ data })));
+      }),
+    );
+    await restartParkedOf("https://switchboard.test/graphql/workflow-runtime", [
+      "live",
+      "backfill",
+      null,
+    ]);
+    expect(calls).toEqual(["runs live", "DISABLED live", "ENABLED live"]);
   });
 });

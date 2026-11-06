@@ -586,16 +586,17 @@ export function cardView(
       line: blocking.message,
     };
   }
-  const signedIn =
-    Boolean(state.resources.connectionId) &&
-    !state.check?.issues.some((i) => i.code === "NEEDS_SIGN_IN");
-  if (!signedIn) {
+  const signIn = state.check?.issues.find((i) => i.code === "NEEDS_SIGN_IN");
+  if (!state.resources.connectionId || signIn) {
     return {
       state: "waiting-for-sign-in",
       badge: { label: "Waiting for sign-in", tone: "warning", dot: true },
-      line: options.environment
-        ? `Sign in with ${providerInfo(state.provider)?.label ?? "the provider"} to finish`
-        : `Sign in on ${where} to finish`,
+      // The runner says why when it asked: again (refused, more access, another account)
+      line:
+        signIn?.message ??
+        (options.environment
+          ? `Sign in with ${providerInfo(state.provider)?.label ?? "the provider"} to finish`
+          : `Sign in on ${where} to finish`),
     };
   }
   if ((state.applied?.generation ?? -1) < state.intent.generation) {

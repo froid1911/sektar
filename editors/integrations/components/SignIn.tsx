@@ -11,6 +11,7 @@ import {
 } from "../../sektar/kit/sign-in-place.js";
 import { Button } from "../../sektar/kit/ui.js";
 import {
+  restartParkedOf,
   signInStatus,
   startSignIn,
   useWorkflowRuntimeUrl,
@@ -31,9 +32,10 @@ type Phase = "idle" | "waiting" | "done" | "stopped";
  * small "sign in here" for someone who is on that computer through another
  * address (the provider sends the sign-in back to that computer, so from any
  * other device it cannot finish). The provider's page opens in a window;
- * when the switchboard has the token, the card asks the reconciler to look
- * again. A start that fails says why in plain words, the switchboard's own
- * text below it.
+ * when the switchboard has the token, the card tries again what the runtime
+ * parked meanwhile (a sign-in the provider stopped accepting fails every
+ * run) and asks the reconciler to look again. A start that fails says why in
+ * plain words, the switchboard's own text below it.
  *
  * A provider that refuses (an account the app does not allow, a cancelled
  * consent) often never sends the browser back, so the switchboard never
@@ -112,6 +114,12 @@ export function SignIn({
         if (mine !== attempt.current) return;
         if (state?.status === "OK") {
           setPhase("done");
+          // What a refused sign-in stopped starts again; a park that outlasts
+          // this leaves the card with Try again.
+          await restartParkedOf(url, [
+            s.resources.liveWorkflowId,
+            s.resources.backfillWorkflowId,
+          ]).catch(() => undefined);
           await dispatchActions(
             [
               actions.requestCheck({

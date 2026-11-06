@@ -351,7 +351,10 @@ describe("the live workflow", () => {
     )!;
     expect(upsert.input).toMatchObject({
       reactorConnectionId: "reactor-conn",
-      config: { documentType: "sektar/calendar-event", driveId: "calendar-drive" },
+      config: {
+        documentType: "sektar/calendar-event",
+        driveId: "calendar-drive",
+      },
     });
     expect(s.applied?.generation).toBe(s.intent.generation);
     expect(s.check?.issues).toEqual([]);
@@ -573,7 +576,10 @@ describe("the grant", () => {
     await w.pass();
 
     expect(
-      w.workflows.get(id)!.actions.slice(count).map((a) => a.type),
+      w.workflows
+        .get(id)!
+        .actions.slice(count)
+        .map((a) => a.type),
     ).toEqual(["SET_POLICY", "PUBLISH_WORKFLOW"]);
   });
 
@@ -1119,7 +1125,12 @@ describe("a reconcile pass", () => {
       }),
     ]);
     const c = w.connections.get("conn-1")!;
-    w.connections.set("conn-1", { ...c, status: "OK", signedIn: true, granted: null });
+    w.connections.set("conn-1", {
+      ...c,
+      status: "OK",
+      signedIn: true,
+      granted: null,
+    });
     await w.pass(CLOUD, true);
     expect(w.doc.state.global.check?.issues).toEqual([
       expect.objectContaining({
@@ -1221,6 +1232,46 @@ describe("a reconcile pass", () => {
     w.signIn();
     await w.pass();
     expect(w.doc.state.global.check?.issues).toEqual([]);
+  });
+
+  it("asks to sign in again when the provider no longer accepts the sign-in", async () => {
+    const w = world();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    // The runtime records ERROR when Google refuses the refresh token
+    const c = w.connections.get("conn-1")!;
+    w.connections.set("conn-1", { ...c, status: "ERROR" });
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NEEDS_SIGN_IN",
+        subject: "conn-1",
+        message:
+          "Sign in to Google again on pc: Google no longer accepts the sign-in",
+      }),
+    ]);
+    // The sign-in's check records OK: settled again
+    w.signIn();
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([]);
+  });
+
+  it("asks to sign in again in this environment when the provider no longer accepts the sign-in", async () => {
+    const w = world();
+    await w.pass(CLOUD, true);
+    w.signIn();
+    await w.pass(CLOUD, true);
+    const c = w.connections.get("conn-1")!;
+    w.connections.set("conn-1", { ...c, status: "ERROR" });
+    await w.pass(CLOUD, true);
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NEEDS_SIGN_IN",
+        message:
+          "Sign in with Google again: Google no longer accepts the sign-in",
+      }),
+    ]);
   });
 
   it("makes a new connection when its connection was deleted", async () => {
